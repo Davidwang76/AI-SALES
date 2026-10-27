@@ -1,0 +1,73 @@
+name: ai-sales
+services:
+  db:
+    image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    environment:
+      POSTGRES_USER: sales
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: sales
+    volumes:
+      - database:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U sales -d sales"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  migrate:
+    image: ai-sales:${APP_TAG:-local}
+    build: .
+    environment:
+      DATABASE_URL: postgres://sales:${DB_PASSWORD}@db:5432/sales
+      BOOTSTRAP_EMAIL: ${BOOTSTRAP_EMAIL:-}
+      BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD:-}
+      BOOTSTRAP_ENTITY: ${BOOTSTRAP_ENTITY:-广州经营主体}
+    command: [npm, run, "db:migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    image: ai-sales:${APP_TAG:-local}
+    environment:
+      DATABASE_URL: postgres://sales:${DB_PASSWORD}@db:5432/sales
+      HOST: 0.0.0.0
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_ENDPOINT: ${MODEL_ENDPOINT:-https://api.openai.com/v1/chat/completions}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    volumes:
+      - private_files:/app/data/files
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  worker:
+    image: ai-sales:${APP_TAG:-local}
+    command: [npm, run, worker]
+    environment:
+      DATABASE_URL: postgres://sales:${DB_PASSWORD}@db:5432/sales
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_ENDPOINT: ${MODEL_ENDPOINT:-https://api.openai.com/v1/chat/completions}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          --import,
+          tsx,
+          -e,
+          'import(''./packages/db/index.ts'').then(async m=>{const r=await m.pool.query("SELECT 1 FROM worker_status WHERE updated_at>now()-interval ''30 seconds''");await m.pool.end();process.exit(r.rowCount?0:1);}).catch(()=>process.exit(1))',
+        ]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+volumes:
+  database:
+  private_files:

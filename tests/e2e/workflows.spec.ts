@@ -1,0 +1,256 @@
+import { test, expect, type Page } from "@playwright/test";
+const email = process.env.BOOTSTRAP_EMAIL!,
+  password = process.env.BOOTSTRAP_PASSWORD!;
+async function login(page: Page) {
+  await page.goto("/");
+  await page.getByLabel("邮箱", { exact: true }).fill(email);
+  await page.getByLabel("密码", { exact: true }).fill(password);
+  const responsePromise = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/v1/session") && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "登录工作台" }).click();
+  await (await responsePromise).finished();
+  await expect
+    .poll(async () => (await page.context().cookies()).map((c) => c.name))
+    .toContain("session");
+  await expect(page.getByRole("heading", { name: "经营工作台" })).toBeVisible();
+}
+test("桌面两条获客链：活动、采集、核实、客户、公共留资持久保存", async ({
+  page,
+  context,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await login(page);
+  await page.getByRole("button", { name: "展会与推广", exact: true }).click();
+  await page.getByRole("button", { name: "新建", exact: true }).click();
+  await page.getByLabel("活动名称").fill("虚构 E2E 展会");
+  await page.getByLabel("活动类型").selectOption("exhibition");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    page.locator("td").getByText("虚构 E2E 展会", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await page.getByRole("button", { name: "现场采集", exact: true }).click();
+  await page.getByLabel("来源活动").selectOption({ label: "虚构 E2E 展会" });
+  await page.getByLabel("客户公司").fill("虚构 E2E 进口商");
+  await page.getByLabel("联系人", { exact: true }).fill("Fictional Buyer");
+  await page.getByLabel("邮箱", { exact: true }).fill("browser@example.com");
+  await page
+    .getByLabel("会谈 / 原始需求")
+    .fill("Interested in filters. 请先提供目录，进口能力待核实。");
+  await page.getByLabel("联系许可").selectOption("unknown");
+  await page.getByRole("button", { name: "提交到服务器" }).click();
+  await expect(
+    page.locator("td").getByText("虚构 E2E 进口商", { exact: true }),
+  ).toBeVisible();
+  await page
+    .locator("td")
+    .getByText("虚构 E2E 进口商", { exact: true })
+    .click();
+  await page.getByRole("button", { name: "确认归属并转客户" }).click();
+  await page.getByLabel("负责人").selectOption({ label: "负责人" });
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.getByRole("button", { name: "打开客户档案" }).click();
+  await expect(
+    page.getByRole("heading", { name: "联系人与许可" }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "客户资产", exact: true }).click();
+  await expect(
+    page.locator("td").getByText("虚构 E2E 进口商", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "展会与推广", exact: true }).click();
+  await page.getByRole("button", { name: "新建", exact: true }).click();
+  await page.getByLabel("活动名称").fill("虚构 E2E 线上");
+  await page.getByLabel("活动类型").selectOption("online");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.locator("td").getByText("虚构 E2E 线上", { exact: true }).click();
+  const [publicPage] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("button", { name: "打开英文留资表单" }).click(),
+  ]);
+  await publicPage
+    .getByLabel("Company", { exact: true })
+    .fill("虚构 E2E 线上买家");
+  await publicPage.getByLabel("Business email").fill("online@example.com");
+  await publicPage
+    .getByLabel("Your enquiry")
+    .fill("Please send the catalogue.");
+  await publicPage.getByRole("button", { name: "Submit enquiry" }).click();
+  await expect(
+    publicPage.getByRole("heading", { name: "Thank you." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await expect(
+    page.locator("td").getByText("虚构 E2E 线上买家", { exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+  await page.screenshot({ path: "test-results/desktop.png", fullPage: true });
+});
+test("手机弱网：文字草稿明确未上传，恢复后提交；导航不溢出", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.getByRole("button", { name: "打开导航" }).click();
+  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await page.getByRole("button", { name: "现场采集", exact: true }).click();
+  await page.getByLabel("来源活动").selectOption({ label: "虚构 E2E 展会" });
+  await page.getByLabel("客户公司").fill("虚构弱网采集");
+  await page.getByLabel("邮箱", { exact: true }).fill("offline@example.com");
+  await page.getByLabel("会谈 / 原始需求").fill("离线文字保留，未上传。");
+  await page.getByLabel("联系许可").selectOption("unknown");
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "提交到服务器" }).click();
+  await expect(page.getByText(/未上传成功，已保留本机文字草稿/)).toBeVisible();
+  await page.getByRole("button", { name: "保留未上传草稿" }).click();
+  await context.setOffline(false);
+  await page.getByRole("button", { name: "现场采集", exact: true }).click();
+  await expect(page.getByLabel("客户公司")).toHaveValue("虚构弱网采集");
+  await page.getByRole("button", { name: "提交到服务器" }).click();
+  await expect(
+    page.locator("td").getByText("虚构弱网采集", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+test("采购报价到订单：真实数据库计算、界面审批与确认订单", async ({ page }) => {
+  await login(page);
+  const sr = await page.request.get("/api/v1/session");
+  expect(sr.status(), await sr.text()).toBe(200);
+  const session = (await sr.json()).data;
+  const entity = session.entities[0].id;
+  const post = async (url: string, data: any) => {
+    const r = await page.request.post("/api/v1/" + url, {
+      headers: { "X-Entity-Id": entity },
+      data,
+    });
+    expect(r.status(), await r.text()).toBe(200);
+    return (await r.json()).data;
+  };
+  const source = await post("sources", {
+    name: "合成客户确认与货源证据",
+    kind: "document",
+    body: "Synthetic test: OE TEST-1234, 100 pieces. CNY72 cost, 1USD=7.2CNY, confirmed fitment. Customer confirms independent purchase.",
+  });
+  const activity = await post("activities", {
+    name: "虚构交易链来源",
+    type: "exhibition",
+  });
+  const lead = await post("leads", {
+    activity_id: activity.id,
+    event_id: "commercial-browser",
+    company: "虚构交易链买家",
+    email: "trade@example.com",
+    notes: "合成采购需求",
+  });
+  const converted = await post(`leads/${lead.id}/convert`, {});
+  const product = await post("products", {
+    sku: "BROWSER-FILTER",
+    name: "合成交易滤芯",
+    category: "filter",
+    oe: "TEST-1234",
+    fitment_status: "confirmed",
+    source_id: source.id,
+  });
+  const rfq = await post("rfqs", {
+    account_id: converted.account_id,
+    source_id: source.id,
+    title: "虚构100件滤芯采购",
+    destination: "Mombasa",
+    lines: [
+      {
+        oe: "TEST-1234",
+        description: "Filter",
+        quantity: "100",
+        unit: "piece",
+      },
+    ],
+  });
+  const rfqData = (
+    await (
+      await page.request.get("/api/v1/rfqs/" + rfq.id, {
+        headers: { "X-Entity-Id": entity },
+      })
+    ).json()
+  ).data;
+  const line = rfqData.lines[0];
+  await post(`rfqs/${rfq.id}/match`, {
+    line_id: line.id,
+    product_id: product.id,
+  });
+  const supplier = await post("suppliers", {
+    name: "虚构浏览器货源",
+    email: "source@example.com",
+    evidence_id: source.id,
+  });
+  const purchase = await post("purchase-rfqs", {
+    rfq_id: rfq.id,
+    name: "浏览器采购任务",
+  });
+  const offer = await post(`purchase-rfqs/${purchase.id}/responses`, {
+    rfq_line_id: line.id,
+    supplier_id: supplier.id,
+    product_id: product.id,
+    source_id: source.id,
+    price: "72",
+    currency: "CNY",
+    pack_qty: "1",
+    unit: "piece",
+    quality: "Q1",
+    fee_scope: "包装已含",
+    moq: "1",
+    valid_until: "2035-01-01T00:00:00Z",
+  });
+  await post(`supplier-responses/${offer.id}/select`, {
+    reason: "合成质量与交期确认",
+  });
+  await page.getByRole("button", { name: "报价与审批", exact: true }).click();
+  await page.getByRole("button", { name: "新建", exact: true }).click();
+  await page.getByLabel("客户采购需求").selectOption(rfq.id);
+  await page.getByLabel("收件联系人").selectOption(converted.contact_id);
+  await page.getByLabel("报价币种").fill("USD");
+  await page.getByLabel("贸易条款", { exact: true }).fill("FOB");
+  await page.getByLabel("条款地点").fill("Guangzhou");
+  await page.getByLabel("有效至", { exact: true }).fill("2035-01-01T00:00");
+  await page.getByLabel("付款条件").fill("合成测试预付款条件");
+  await page.getByLabel("供货方案").selectOption(offer.id);
+  await page.getByLabel("目标毛利率").fill("0.2");
+  await page.getByLabel("汇率数值").fill("7.2");
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/v1/quotes") && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "计算并保存报价草稿" }).click();
+  const revision = (await (await saved).json()).data;
+  expect(revision.amount).toBe("1250.000000");
+  await page
+    .locator("td")
+    .getByText(revision.quote_id, { exact: true })
+    .click();
+  await expect(page.getByText(/1250.000000 USD/)).toBeVisible();
+  await page.getByRole("button", { name: "审核批准（不发送）" }).click();
+  await page
+    .getByLabel("审批理由与已核对条件")
+    .fill("来源、适配、毛利、条款均按合成案例核对");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("已批准", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "订单与回款", exact: true }).click();
+  await page.getByRole("button", { name: "新建", exact: true }).click();
+  await page.getByLabel("已批准报价").selectOption(revision.quote_id);
+  await page.getByLabel("原件 / 依据").selectOption(source.id);
+  await page.getByLabel("客户独立采购编号").fill("BROWSER-INDEPENDENT-PO");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.screenshot({
+    path: "test-results/commercial.png",
+    fullPage: true,
+  });
+});
