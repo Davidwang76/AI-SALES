@@ -482,93 +482,245 @@ test("修炼导航：个人四栏目、家庭6Q与维度入口、返回及刷新
   });
 });
 
-test("首页功能到季月旬：公司登录、分解、进展、完成约束与刷新持久读取", async ({
+test("三方目标制定：真实账号留言、秘书资料、AI测试替身起草、依次确认、分解与旬复盘", async ({
   page,
+  browser,
 }) => {
-  const key = Date.now().toString();
-  await page.goto("/");
-  await page.getByRole("button", { name: /^季月旬目标管理/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "先选择目标所属公司" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: /^01 · SRR/ }).click();
-  await page.getByLabel("用户名", { exact: true }).fill(email);
-  await page.getByLabel("密码", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "季月旬目标管理", exact: true }),
-  ).toBeVisible();
-  await page.getByLabel("目标年份").selectOption("2028");
-  await page.getByLabel("目标季度").selectOption("1");
-  await page.getByRole("button", { name: "新建季度目标", exact: true }).click();
-  await page.getByLabel("目标名称").fill("合成季度目标" + key);
-  await page.getByRole("button", { name: "保存目标", exact: true }).click();
-  const quarter = page
-    .locator(".goal-quarter")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "合成季度目标" + key,
+  test.setTimeout(90000);
+  page.setDefaultTimeout(10000);
+  const { pool } = await import("../../packages/db/index.js");
+  const { processGoalDraftOne } =
+    await import("../../apps/api/goal-draft-worker.js");
+  expect(process.env.DATABASE_URL).toMatch(/sales_test|sales_e2e/);
+  await pool.query("DELETE FROM rate_limits");
+  const key = Date.now().toString(),
+    contexts = [] as Awaited<ReturnType<typeof browser.newContext>>[];
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const adapter = {
+    async generate(snapshot: any) {
+      return {
+        output: {
+          proposal:
+            "这是浏览器流程验证中的模型测试替身输出，不是实际经营建议。依据三方讨论和秘书数据拟定目标，需三方依次确认。",
+          evidence: ["superior", "subordinate", "material"].map((kind) => {
+            const ref = snapshot.refs.find((r: any) => r.kind === kind);
+            return { ref_id: ref.id, quote: ref.content.slice(0, 40) };
+          }),
+          unknowns: ["合成验证中的待核实工时"],
+          risks: ["合成验证风险"],
+        },
+        model: "browser-test-adapter",
+        usage: { total_tokens: 10 },
+      };
+    },
+  };
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: /^季月旬目标管理/ }).click();
+    await page.getByRole("button", { name: /^01 · SRR/ }).click();
+    await page.getByLabel("用户名", { exact: true }).fill(email);
+    await page.getByLabel("密码", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "登录工作台", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "共同制定目标，再逐级确认" }),
+    ).toBeVisible();
+    const session = (await (await page.request.get("/api/v1/session")).json())
+      .data;
+    const entity = session.entities[0].id;
+    const createMember = async (name: string, role: string) => {
+      const email = `${role}-${key}@example.com`;
+      const r = await page.request.post("/api/v1/members", {
+        headers: { "X-Entity-Id": entity },
+        data: { name, email, password, role },
+      });
+      expect(r.status(), await r.text()).toBe(200);
+      return { id: (await r.json()).data.id, email };
+    };
+    const lower = await createMember("协作下级" + key, "sales"),
+      secretary = await createMember("协作秘书" + key, "finance");
+    // Refresh to retrieve the newly created participant options.
+    await page.getByRole("button", { name: "刷新", exact: true }).click();
+    await page
+      .getByRole("button", { name: "发起季度目标讨论", exact: true })
+      .click();
+    await page.getByLabel("讨论主题").fill("季度三方议题" + key);
+    await page.getByLabel("年份", { exact: true }).fill("2036");
+    await page.getByLabel("季度", { exact: true }).selectOption("1");
+    await page.getByLabel("下级", { exact: true }).selectOption(lower.id);
+    await page.getByLabel("秘书", { exact: true }).selectOption(secretary.id);
+    const created = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/v1/goal-plans") &&
+        r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "建立讨论", exact: true }).click();
+    const q = (await (await created).json()).data;
+    await page
+      .getByLabel("以上级身份留言")
+      .fill("上级希望提升交付质量，同时保持合理工作强度。");
+    await page.getByRole("button", { name: "发表观点", exact: true }).click();
+    async function participant(email: string) {
+      const c = await browser.newContext();
+      contexts.push(c);
+      const p = await c.newPage();
+      p.setDefaultTimeout(10000);
+      p.on("pageerror", (e) => errors.push(e.message));
+      await p.goto("/company/01?tool=goals");
+      await p.getByLabel("用户名", { exact: true }).fill(email);
+      await p.getByLabel("密码", { exact: true }).fill(password);
+      await p.getByRole("button", { name: "登录工作台", exact: true }).click();
+      await expect(
+        p.getByRole("heading", { name: "共同制定目标，再逐级确认" }),
+      ).toBeVisible();
+      return p;
+    }
+    async function select(p: Page, title: string) {
+      await p.getByRole("button", { name: "刷新讨论", exact: true }).click();
+      await p
+        .getByRole("complementary", { name: "目标周期议题" })
+        .getByRole("button", { name: new RegExp(title) })
+        .click();
+      await expect(
+        p.getByRole("heading", { name: title, exact: true }),
+      ).toBeVisible();
+    }
+    const lp = await participant(lower.email),
+      sp = await participant(secretary.email);
+    await select(lp, q.title);
+    await lp
+      .getByLabel("以下级身份留言")
+      .fill("下级建议保留培训时间，现有团队共三人。");
+    await lp.getByRole("button", { name: "发表观点", exact: true }).click();
+    await select(sp, q.title);
+    await sp
+      .getByLabel("粘贴会议纪要、表格数据或原件补充说明")
+      .fill("会议纪要\n团队人数,3\n本旬完成交付,8\n返工项,2\n需预留培训时间。");
+    await sp
+      .getByRole("button", { name: "提交到秘书黏贴板", exact: true })
+      .click();
+    async function draftAndConfirm(current: Page, title: string) {
+      await current
+        .getByRole("button", { name: "草案与确认", exact: true })
+        .click();
+      await current
+        .getByRole("button", { name: "刷新讨论", exact: true })
+        .click();
+      const queued = current.waitForResponse(
+        (r) =>
+          /\/goal-plans\/[^/]+\/generate$/.test(r.url()) &&
+          r.request().method() === "POST",
+      );
+      await current
+        .getByRole("button", { name: "请AI拟定目标草案", exact: true })
+        .click();
+      const queuedResponse = await queued;
+      expect(queuedResponse.status(), await queuedResponse.text()).toBe(200);
+      expect(await processGoalDraftOne(adapter)).toBe(true);
+      await current
+        .getByRole("button", { name: "刷新讨论", exact: true })
+        .click();
+      const vote上级 = current.waitForResponse(
+        (r) =>
+          /\/goal-plans\/[^/]+\/confirm$/.test(r.url()) &&
+          r.request().method() === "POST",
+      );
+      await current
+        .getByRole("button", { name: "以上级身份确认此版本", exact: true })
+        .click();
+      const result上级 = await vote上级;
+      expect(result上级.status(), await result上级.text()).toBe(200);
+      await select(lp, title);
+      const vote下级 = lp.waitForResponse(
+        (r) =>
+          /\/goal-plans\/[^/]+\/confirm$/.test(r.url()) &&
+          r.request().method() === "POST",
+      );
+      await lp
+        .getByRole("button", { name: "以下级身份确认此版本", exact: true })
+        .click();
+      const result下级 = await vote下级;
+      expect(result下级.status(), await result下级.text()).toBe(200);
+      await select(sp, title);
+      const vote秘书 = sp.waitForResponse(
+        (r) =>
+          /\/goal-plans\/[^/]+\/confirm$/.test(r.url()) &&
+          r.request().method() === "POST",
+      );
+      await sp
+        .getByRole("button", { name: "以秘书身份确认此版本", exact: true })
+        .click();
+      const result秘书 = await vote秘书;
+      expect(result秘书.status(), await result秘书.text()).toBe(200);
+      await current
+        .getByRole("button", { name: "刷新讨论", exact: true })
+        .click();
+      await expect(current.locator(".cycle-summary")).toContainText(
+        "三方已确认",
+      );
+    }
+    await draftAndConfirm(page, q.title);
+    await page
+      .getByRole("button", { name: "制定月度目标", exact: true })
+      .click();
+    await page.getByLabel("讨论主题").fill("月度三方议题" + key);
+    await page.getByLabel("目标月份").selectOption("1");
+    await page.getByRole("button", { name: "建立讨论", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "月度三方议题" + key, exact: true }),
+    ).toBeVisible();
+    await draftAndConfirm(page, "月度三方议题" + key);
+    await page
+      .getByRole("button", { name: "制定当月旬目标", exact: true })
+      .click();
+    await page.getByLabel("讨论主题").fill("旬度三方议题" + key);
+    await page.getByLabel("目标旬").selectOption("1");
+    await page.getByRole("button", { name: "建立讨论", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "旬度三方议题" + key, exact: true }),
+    ).toBeVisible();
+    await draftAndConfirm(page, "旬度三方议题" + key);
+    await sp
+      .getByLabel("本旬实际结果与差距")
+      .fill("本旬实际交付6项，存在两项延期。");
+    await sp
+      .getByLabel("下一旬需要调整什么")
+      .fill("下一旬减少并行任务，优先消除延期。");
+    await sp.getByRole("button", { name: "提交旬末复盘", exact: true }).click();
+    await sp
+      .getByRole("button", {
+        name: "引用复盘，建立下一旬调整讨论",
+        exact: true,
+      })
+      .click();
+    await expect(
+      sp.getByRole("heading", {
+        name: "上一旬复盘：本次调整的依据",
         exact: true,
       }),
+    ).toBeVisible();
+    await expect(sp.locator(".cycle-detail")).toContainText("优先消除延期");
+    await sp.screenshot({
+      path: "test-results/collaborative-goals-desktop.png",
+      fullPage: true,
     });
-  await quarter.getByRole("button", { name: "分解到月", exact: true }).click();
-  await page.getByLabel("目标名称").fill("合成月度目标" + key);
-  await page.getByLabel("目标月份").selectOption("2");
-  await page.getByRole("button", { name: "保存目标", exact: true }).click();
-  const month = page
-    .locator(".goal-month")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "合成月度目标" + key,
-        exact: true,
-      }),
+    await sp.setViewportSize({ width: 390, height: 844 });
+    const cycleBox = await sp
+      .getByRole("complementary", { name: "目标周期议题" })
+      .boundingBox();
+    expect(cycleBox!.x).toBeGreaterThanOrEqual(0);
+    expect(
+      await sp.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await sp.screenshot({
+      path: "test-results/collaborative-goals-mobile.png",
+      fullPage: true,
     });
-  await month.getByRole("button", { name: "分解到旬", exact: true }).click();
-  await page.getByLabel("目标名称").fill("合成旬目标" + key);
-  await page.getByLabel("执行旬").selectOption("3");
-  await page.getByRole("button", { name: "保存目标", exact: true }).click();
-  const ten = page
-    .locator(".goal-ten_day")
-    .filter({
-      has: page.getByRole("heading", { name: "合成旬目标" + key, exact: true }),
-    });
-  await expect(ten).toContainText("2028-02-21—2028-02-29");
-  await quarter
-    .locator(":scope > .goal-actions")
-    .getByRole("button", { name: "完成", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toContainText("下级目标未结束");
-  await ten.getByRole("button", { name: "记录进展", exact: true }).click();
-  await page.getByLabel("进展或完成结果").fill("合成执行结果已经记录");
-  await page.getByRole("button", { name: "保存目标", exact: true }).click();
-  await ten.getByRole("button", { name: "完成", exact: true }).click();
-  await month
-    .locator(":scope > .goal-actions")
-    .getByRole("button", { name: "完成", exact: true })
-    .click();
-  await quarter
-    .locator(":scope > .goal-actions")
-    .getByRole("button", { name: "完成", exact: true })
-    .click();
-  await expect(quarter.locator(":scope > .goal-heading")).toContainText(
-    "已完成",
-  );
-  await page.reload();
-  await page.getByLabel("目标年份").selectOption("2028");
-  await page.getByLabel("目标季度").selectOption("1");
-  await expect(ten).toContainText("合成执行结果已经记录");
-  await page.screenshot({
-    path: "test-results/goals-desktop.png",
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: "test-results/goals-mobile.png",
-    fullPage: true,
-  });
+    expect(errors).toEqual([]);
+  } finally {
+    for (const c of contexts) await c.close();
+    await pool.end();
+  }
 });

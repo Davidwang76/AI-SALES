@@ -32,195 +32,43 @@ test("旬与季度日期：闰年、平年、大小月和年末", () => {
     "2027年3月中旬",
   );
 });
-test("季月旬持久保存、负责人范围、公司隔离、版本并发与层级结束约束", async () => {
+test("旧版目标保留可读，旧写入接口不能绕过三方确认", async () => {
   assert.ok(process.env.DATABASE_URL?.includes("sales_test"));
   await migrate();
   const app = await buildApp();
-  const id = randomUUID(),
+  const email = `legacy-${randomUUID()}@example.com`,
     password = "Test-only-" + randomUUID();
-  const email = `goals-${id}@example.com`,
-    otherEmail = `goals-other-${id}@example.com`;
   await bootstrap(email, password);
-  await bootstrap(otherEmail, password);
-  async function login(email: string) {
-    const r = await app.inject({
-      method: "POST",
-      url: "/api/v1/session",
-      remoteAddress: "127.0.0.3",
-      payload: { email, password },
-    });
-    assert.equal(r.statusCode, 200, r.body);
-    return {
-      cookie: "session=" + r.cookies[0].value,
-      entity: r.json().data.entities[0].id,
-    };
-  }
-  const admin = await login(email),
-    foreign = await login(otherEmail);
-  async function req(
-    actor: typeof admin,
-    method: any,
-    path: string,
-    payload?: any,
-  ) {
-    return app.inject({
-      method,
-      url: "/api/v1/" + path,
-      headers: { cookie: actor.cookie, "x-entity-id": actor.entity },
-      payload,
-    });
-  }
-  async function post(path: string, payload: any, actor = admin) {
-    const r = await req(actor, "POST", path, payload);
-    assert.equal(r.statusCode, 200, r.body);
-    return r.json().data;
-  }
+  const login = await app.inject({
+    method: "POST",
+    url: "/api/v1/session",
+    remoteAddress: "127.0.0.3",
+    payload: { email, password },
+  });
+  const session = login.json().data;
+  const entity = session.entities[0].id;
+  const cookie = "session=" + login.cookies[0].value;
+  const org = session.entities[0].organization_id;
+  const goal = (
+    await pool.query(
+      "INSERT INTO goals(organization_id,business_entity_id,created_by,updated_by,level,year,quarter,title,owner_id) VALUES($1,$2,$3,$3,'quarter',2028,1,'原有历史目标',$3) RETURNING id",
+      [org, entity, session.id],
+    )
+  ).rows[0];
   try {
-    const executor = await post("members", {
-      name: "目标执行者",
-      email: `exec-${id}@example.com`,
-      password,
-      role: "sales",
+    const headers = { cookie, "x-entity-id": entity };
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/goals",
+      headers,
     });
-    const exec = await login(`exec-${id}@example.com`);
-    const quarter = await post("goals", {
-      title: "季度合成目标",
-      year: 2028,
-      quarter: 1,
-      owner_id: executor.id,
-    });
-    const monthly = await post("goals", {
-      title: "二月分解",
-      parent_id: quarter.id,
-      month: 2,
-    });
-    const ten = await post(
-      "goals",
-      { title: "下旬执行", parent_id: monthly.id, ten_day: 3 },
-      exec,
-    );
-    assert.equal(ten.owner_id, executor.id);
-    assert.equal(ten.year, 2028);
-    assert.equal(ten.month, 2);
-    assert.equal(
-      (
-        await req(admin, "POST", "goals", {
-          title: "错误月份",
-          parent_id: quarter.id,
-          month: 4,
-        })
-      ).statusCode,
-      422,
-    );
-    assert.equal(
-      (
-        await req(foreign, "POST", "goals", {
-          title: "跨公司分解",
-          parent_id: quarter.id,
-          month: 1,
-        })
-      ).statusCode,
-      404,
-    );
-    assert.equal(
-      (await req({ ...exec, entity: foreign.entity }, "GET", "goals"))
-        .statusCode,
-      403,
-    );
-    assert.deepEqual(
-      (await req(foreign, "GET", "goals?year=2028&quarter=1")).json().data,
-      [],
-    );
-    const own = await post("goals", {
-      title: "管理者个人目标",
-      year: 2028,
-      quarter: 1,
-    });
-    assert.ok(
-      !(await req(exec, "GET", "goals?year=2028&quarter=1"))
-        .json()
-        .data.some((v: any) => v.id === own.id),
-    );
-    assert.equal(
-      (
-        await req(exec, "POST", `goals/${own.id}/state`, {
-          row_version: 1,
-          status: "completed",
-        })
-      ).statusCode,
-      404,
-    );
-    assert.equal(
-      (
-        await req(exec, "POST", "goals", {
-          title: "越权分派",
-          year: 2028,
-          quarter: 1,
-          owner_id: (
-            await pool.query("SELECT created_by FROM goals WHERE id=$1", [
-              own.id,
-            ])
-          ).rows[0].created_by,
-        })
-      ).statusCode,
-      403,
-    );
-    assert.equal(
-      (
-        await req(admin, "POST", `goals/${quarter.id}/state`, {
-          row_version: quarter.row_version,
-          status: "completed",
-        })
-      ).statusCode,
-      422,
-    );
-    const race = await Promise.all([
-      req(exec, "POST", `goals/${ten.id}/state`, {
-        row_version: 1,
-        status: "completed",
-        result_note: "执行完成",
-      }),
-      req(exec, "POST", `goals/${ten.id}/state`, {
-        row_version: 1,
-        status: "in_progress",
-      }),
-    ]);
-    assert.deepEqual(race.map((v) => v.statusCode).sort(), [200, 409]);
-    let stored = (await req(exec, "GET", "goals?year=2028&quarter=1"))
-      .json()
-      .data.find((v: any) => v.id === ten.id);
-    if (stored.status !== "completed")
-      stored = await post(
-        `goals/${ten.id}/state`,
-        {
-          row_version: stored.row_version,
-          status: "completed",
-          result_note: "执行完成",
-        },
-        exec,
+    assert.ok(list.json().data.some((g: any) => g.id === goal.id));
+    for (const url of ["/api/v1/goals", `/api/v1/goals/${goal.id}/state`])
+      assert.equal(
+        (await app.inject({ method: "POST", url, headers, payload: {} }))
+          .statusCode,
+        409,
       );
-    await post(`goals/${monthly.id}/state`, {
-      row_version: monthly.row_version,
-      status: "completed",
-    });
-    await post(`goals/${quarter.id}/state`, {
-      row_version: quarter.row_version,
-      status: "completed",
-    });
-    assert.equal(
-      (
-        await req(exec, "POST", `goals/${ten.id}/state`, {
-          row_version: stored.row_version,
-          status: "planned",
-        })
-      ).statusCode,
-      422,
-    );
-    const persisted = (
-      await pool.query("SELECT * FROM goals WHERE id=$1", [ten.id])
-    ).rows[0];
-    assert.equal(persisted.result_note, "执行完成");
-    assert.equal(persisted.status, "completed");
   } finally {
     await app.close();
     await pool.end();

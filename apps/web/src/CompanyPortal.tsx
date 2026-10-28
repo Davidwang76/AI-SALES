@@ -139,7 +139,7 @@ export function CompanyPortal({
           <Target size={29} />
           <span>
             <b>季月旬目标管理</b>
-            <small>季度定方向 · 月度做分解 · 旬度看执行</small>
+            <small>三方讨论 · AI起草 · 依次确认 · 旬末复盘</small>
           </span>
           <ArrowUpRight size={23} />
         </button>

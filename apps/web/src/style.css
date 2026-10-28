@@ -1530,3 +1530,238 @@ nav .nav-group-toggle {
     font-size: 18px;
   }
 }
+.collab-intro {
+  padding: 5px 0 12px;
+}
+.collab-intro h2 {
+  font-size: 23px;
+}
+.collab-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.collab-steps span {
+  background: #e9f0e9;
+  border-radius: 8px;
+  padding: 12px;
+  color: #4e7056;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.collab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 22px;
+}
+.collab-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+aside.cycle-list {
+  transform: none;
+  box-shadow: none;
+  position: static;
+  inset: auto;
+  z-index: auto;
+  width: auto;
+  background: #fff;
+  color: #354f3e;
+  padding: 16px 12px;
+  border: 1px solid #e1e8e0;
+  border-radius: 10px;
+  max-height: 75vh;
+  overflow: auto;
+}
+.cycle-list h3 {
+  padding: 5px 8px;
+}
+.cycle-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: #405e47;
+  background: #f6f8f4;
+  padding: 13px 10px;
+  margin-bottom: 10px;
+}
+.cycle-list button.selected {
+  background: #e2eee1;
+  border-color: #8eaf8d;
+}
+.cycle-list b,
+.cycle-list small {
+  display: block;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.cycle-list b {
+  margin: 6px 0;
+}
+.cycle-detail {
+  min-width: 0;
+}
+.cycle-detail .panel {
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.cycle-detail h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.participant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.participant-grid > div {
+  background: #f0f5ee;
+  border-radius: 8px;
+  padding: 14px;
+}
+.participant-grid b,
+.participant-grid small {
+  display: block;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.message-timeline article {
+  margin: 12px 0;
+  padding: 15px;
+}
+.message-timeline article p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message-composer button,
+.secretary-board > button {
+  margin-top: 10px;
+}
+.secretary-board {
+  border: 2px dashed #c0d4bd;
+  padding: 16px;
+  border-radius: 10px;
+  margin-top: 18px;
+}
+.secretary-board input[hidden] {
+  display: none;
+}
+.secretary-board > small,
+.next-cycle small {
+  display: block;
+  line-height: 1.8;
+  margin: 12px 0;
+}
+.material-item {
+  border-bottom: 1px solid #e3e9df;
+  padding: 12px 0;
+}
+.material-item summary,
+.cycle-detail summary {
+  cursor: pointer;
+  color: #52704e;
+  line-height: 1.8;
+}
+.draft-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #7a8d73;
+  margin-top: 24px;
+}
+.goal-proposal {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
+  padding: 20px;
+  background: #fafbf7;
+}
+.confirm-chain {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+.confirm-chain div {
+  border: 1px solid #dfe5dc;
+  border-radius: 8px;
+  padding: 13px;
+}
+.confirm-chain div.done {
+  background: #e9f2e3;
+  border-color: #97b18d;
+}
+.confirm-chain small {
+  display: block;
+  margin-top: 8px;
+}
+.confirmation-actions {
+  margin-top: 20px;
+}
+.cycle-detail blockquote {
+  border-left: 3px solid #c2d3ba;
+  padding-left: 14px;
+  margin: 16px 0;
+}
+.review-prompt {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #f5edcf;
+  color: #816e30;
+}
+.next-cycle {
+  margin-top: 26px;
+  border-top: 1px solid #dce5d7;
+  padding-top: 20px;
+}
+@media (max-width: 1100px) {
+  .collab-layout {
+    grid-template-columns: 1fr;
+  }
+  aside.cycle-list {
+    max-height: 280px;
+  }
+  .collab-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .participant-grid {
+    gap: 5px;
+  }
+  .participant-grid > div {
+    padding: 9px;
+  }
+  .cycle-detail .panel {
+    padding: 17px 13px;
+  }
+  .secretary-board {
+    padding: 12px;
+  }
+  .goal-proposal {
+    padding: 14px;
+  }
+  .confirm-chain {
+    gap: 5px;
+  }
+  .confirm-chain > div {
+    padding: 10px;
+  }
+}
+.cycle-list button {
+  flex-shrink: 0;
+}
+
+.collab-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 0 0 20px;
+}

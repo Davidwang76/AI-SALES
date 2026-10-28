@@ -29,10 +29,12 @@ export function GoalsWorkspace({
   role,
   members,
   refreshKey,
+  readOnly = false,
 }: {
   role: string;
   members: Goal[];
   refreshKey: number;
+  readOnly?: boolean;
 }) {
   const now = currentPeriod();
   const [year, Y] = useState(now.year),
@@ -43,7 +45,7 @@ export function GoalsWorkspace({
     [editor, M] = useState<{ parent?: Goal; goal?: Goal } | null>(null),
     [busy, B] = useState(false);
   const requestId = useRef(0);
-  const writable = role !== "viewer",
+  const writable = !readOnly && role !== "viewer",
     manager = ["owner", "manager"].includes(role);
   async function load() {
     const id = ++requestId.current;
@@ -166,8 +168,14 @@ export function GoalsWorkspace({
         !error && (
           <section className="panel goal-empty">
             <Target size={34} />
-            <h2>先定下这个季度最重要的目标</h2>
-            <p>只需一个目标名称，保存后再逐月、逐旬分解。</p>
+            <h2>
+              {readOnly ? "暂无旧版目标记录" : "先定下这个季度最重要的目标"}
+            </h2>
+            <p>
+              {readOnly
+                ? "新目标请返回三方目标制定。"
+                : "只需一个目标名称，保存后再逐月、逐旬分解。"}
+            </p>
             {writable && (
               <button disabled={busy} onClick={() => M({})}>
                 建立第一个季度目标

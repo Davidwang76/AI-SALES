@@ -32,6 +32,7 @@ import {
   type Actor,
 } from "./context.js";
 import { leadInput, captureLead, convertLead } from "./leads.js";
+import { registerGoalCollaboration } from "./goal-collaboration.js";
 import { registerGoals } from "./goals.js";
 import { registerOperations } from "./operations.js";
 import { registerTrade } from "./trade.js";
@@ -481,7 +482,14 @@ export async function buildApp() {
   });
   const storage = path.resolve(process.env.STORAGE_DIR || ".local/files");
   app.post("/api/v1/files", async (r) => {
-    permission(r.actor);
+    permission(r.actor, [
+      "owner",
+      "manager",
+      "sales",
+      "market",
+      "procurement",
+      "finance",
+    ]);
     const f = await r.file();
     ensure(f, "FILE_REQUIRED", "请选择文件");
     const allowed = [
@@ -490,6 +498,7 @@ export async function buildApp() {
       "application/pdf",
       "text/plain",
       "text/csv",
+      "text/tab-separated-values",
       "audio/webm",
     ];
     ensure(
@@ -2152,6 +2161,7 @@ export async function buildApp() {
       ),
     });
   });
+  await registerGoalCollaboration(app);
   await registerGoals(app);
   await registerTrade(app);
   await registerOperations(app);

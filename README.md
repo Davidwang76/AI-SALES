@@ -68,3 +68,7 @@ npm audit --omit=dev --audit-level=high
 ```
 
 运行及维护：[部署/恢复](docs/deployment.md) · [API约定](docs/api.md) · [连接清单](docs/integrations.md)。
+
+## 三方协作目标制定
+
+季月旬目标采用上级、下级、秘书共同讨论、AI起草、逐方确认、逐级分解和旬末复盘的流程。AI须配置真实模型服务；旧手工目标保留为只读。使用与配置见[三方协作目标制定](docs/goal-collaboration.md)。

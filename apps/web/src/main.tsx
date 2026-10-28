@@ -28,7 +28,7 @@ import { api, setEntity, entity, download } from "./api";
 import "./style.css";
 import { CollectionForm } from "./CollectionForm";
 import { CompanyPortal, type Company } from "./CompanyPortal";
-import { GoalsWorkspace } from "./GoalsWorkspace";
+import { GoalCollaboration } from "./GoalCollaboration";
 import { CompanyWorkspace } from "./CompanyWorkspace";
 import { Navigation } from "./Navigation";
 type Row = Record<string, any>;
@@ -1327,7 +1327,8 @@ function App({ company }: { company?: Company }) {
               </>
             )}
           {section === "goals" && (
-            <GoalsWorkspace
+            <GoalCollaboration
+              userId={session.id}
               role={
                 session.entities.find((v: Row) => v.id === entity)?.role ||
                 "viewer"

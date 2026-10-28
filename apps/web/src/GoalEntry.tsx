@@ -25,7 +25,9 @@ export function GoalEntry({
       <section className="portal-intro">
         <span className="eyebrow">常用功能</span>
         <h1>季月旬目标管理</h1>
-        <p>季度定方向，月度做分解，上中下旬看执行。</p>
+        <p>
+          上级、下级、秘书共同讨论，AI起草，三方依次确认，再逐级分解与旬末复盘。
+        </p>
       </section>
       <section className="panel">
         <Target size={28} />

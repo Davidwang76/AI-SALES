@@ -1,3 +1,4 @@
+import { processGoalDraftOne } from "./goal-draft-worker.js";
 import { hostname } from "node:os";
 import { pool, tx } from "../../packages/db/index.js";
 import { ModelAdapter } from "../../packages/adapters/model.js";
@@ -61,6 +62,14 @@ if (process.argv[1]?.endsWith("worker.ts")) {
       stopped = true;
     });
   console.log("Durable PostgreSQL worker started; external sending disabled");
+  const heartbeat = setInterval(() => {
+    void pool
+      .query(
+        "INSERT INTO worker_status(worker_id,updated_at) VALUES($1,now()) ON CONFLICT(worker_id) DO UPDATE SET updated_at=now()",
+        [hostname()],
+      )
+      .catch(() => {});
+  }, 10000);
   while (!stopped) {
     await pool.query(
       "INSERT INTO worker_status(worker_id,updated_at) VALUES($1,now()) ON CONFLICT(worker_id) DO UPDATE SET updated_at=now()",
@@ -69,7 +78,22 @@ if (process.argv[1]?.endsWith("worker.ts")) {
     await pool.query(
       "UPDATE jobs SET status='needs_manual',error='WORKER_INTERRUPTED_OUTCOME_UNKNOWN' WHERE status='running' AND locked_at<now()-interval '5 minutes'",
     );
-    if (!(await processOne())) await new Promise((r) => setTimeout(r, 1000));
+    await tx(async (db) => {
+      const interrupted = (
+        await db.query(
+          "UPDATE goal_draft_jobs SET status='needs_manual',error='WORKER_INTERRUPTED',finished_at=now() WHERE status='running' AND locked_at<now()-interval '5 minutes' RETURNING plan_id,context_version",
+        )
+      ).rows;
+      for (const job of interrupted)
+        await db.query(
+          "UPDATE goal_plans SET workflow='discussion' WHERE id=$1 AND workflow='drafting' AND context_version=$2",
+          [job.plan_id, job.context_version],
+        );
+    });
+    const planned = await processGoalDraftOne();
+    const extracted = await processOne();
+    if (!planned && !extracted) await new Promise((r) => setTimeout(r, 1000));
   }
+  clearInterval(heartbeat);
   await pool.end();
 }
