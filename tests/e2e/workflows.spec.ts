@@ -399,3 +399,85 @@ test("首界面：公司名称与业务副标题、个人家庭入口、公司�
     fullPage: true,
   });
 });
+
+test("修炼导航：个人四栏目、家庭6Q与维度入口、返回及刷新", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /个人修炼＋家庭修炼/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "个人修炼＋家庭修炼", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /个人修炼入口/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "个人修炼", exact: true }),
+  ).toBeVisible();
+  for (const [name, slug] of [
+    ["管理", "management"],
+    ["技能", "skills"],
+    ["沟通", "communication"],
+    ["目标", "goals"],
+  ]) {
+    await page
+      .getByRole("button", { name: new RegExp(`^${name} ${name}修炼`) })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`/practice/personal/${slug}$`));
+    await expect(
+      page.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "返回个人修炼", exact: true })
+      .click();
+  }
+  await page.screenshot({
+    path: "test-results/practice-personal.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("navigation", { name: "修炼路径" })
+    .getByRole("button", { name: "个人与家庭", exact: true })
+    .click();
+  await page.getByRole("button", { name: /家庭修炼入口/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "家庭修炼", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /^6Q教育/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "6Q教育", exact: true }),
+  ).toBeVisible();
+  for (const dimension of ["EQ", "IQ", "RQ"]) {
+    await page
+      .getByRole("button", { name: new RegExp(`^${dimension} 家庭修炼`) })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: dimension, exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: dimension, exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "返回家庭修炼", exact: true })
+      .click();
+    await page.getByRole("button", { name: /^6Q教育/ }).click();
+  }
+  await page.goBack();
+  await page
+    .getByRole("navigation", { name: "修炼路径" })
+    .getByRole("button", { name: "个人与家庭", exact: true })
+    .click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("button", { name: /个人修炼入口/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /家庭修炼入口/ }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/practice-mobile.png",
+    fullPage: true,
+  });
+});

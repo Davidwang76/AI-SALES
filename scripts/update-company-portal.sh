@@ -5,7 +5,7 @@ release_dir=$(cd "$(dirname "$0")/.." && pwd)
 app_dir=${1:-/home/ubuntu/ai-sales-9f45fcd}
 cd "$app_dir"
 [[ -f .env && -f compose.yaml && -f compose.tencent.yaml ]] || { echo '未找到原安装目录，停止更新。'; exit 1; }
-files=(apps/api/context.ts apps/api/server.ts apps/api/operations.ts apps/web/src/main.tsx apps/web/src/style.css apps/web/src/CollectionForm.tsx apps/web/src/Navigation.tsx apps/web/src/CompanyPortal.tsx apps/web/src/CompanyWorkspace.tsx packages/db/migrations/006_company_portal.sql packages/db/migrations/007_company_names.sql packages/db/provision-portals.ts deploy/Caddyfile.tencent docs/company-portal.md)
+files=(apps/api/context.ts apps/api/server.ts apps/api/operations.ts apps/web/src/main.tsx apps/web/src/style.css apps/web/src/CollectionForm.tsx apps/web/src/Navigation.tsx apps/web/src/CompanyPortal.tsx apps/web/src/PracticePortal.tsx apps/web/src/CompanyWorkspace.tsx packages/db/migrations/006_company_portal.sql packages/db/migrations/007_company_names.sql packages/db/provision-portals.ts deploy/Caddyfile.tencent docs/company-portal.md)
 for file in "${files[@]}"; do [[ -f "$release_dir/$file" ]] || { echo "缺少更新文件：$file"; exit 1; }; done
 backup_dir=".local/company-portal-update-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$backup_dir"

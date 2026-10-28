@@ -1331,3 +1331,87 @@ nav .nav-group-toggle {
   color: #506f5d;
   margin-top: -10px;
 }
+.practice-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 22px;
+  font-size: 13px;
+  color: #7d8d80;
+}
+.practice-breadcrumb button {
+  font-size: 13px;
+}
+.practice-page .portal-intro {
+  padding-top: 28px;
+}
+.practice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.practice-entry {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 32px 26px;
+  gap: 22px;
+  border-radius: 14px;
+  background: #fff;
+  color: #48614e;
+  border: 1px solid #dce2d8;
+}
+.practice-entry > span {
+  flex: 1;
+  min-width: 0;
+}
+.practice-entry > svg {
+  flex-shrink: 0;
+}
+.practice-entry b,
+.practice-entry small {
+  display: block;
+}
+.practice-entry b {
+  font-size: 22px;
+  font-weight: 550;
+}
+.practice-entry small {
+  margin-top: 12px;
+  color: #81907f;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.practice-content {
+  padding: 32px;
+}
+.practice-content > svg {
+  color: #81997c;
+  margin-bottom: 18px;
+}
+.practice-pending {
+  margin: 24px 0;
+}
+@media (max-width: 600px) {
+  .practice-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .practice-entry {
+    padding: 24px 20px;
+    gap: 16px;
+  }
+  .practice-entry b {
+    font-size: 20px;
+  }
+}
+.practice-breadcrumb {
+  overflow: visible;
+  padding: 22px 0 0;
+}
+.practice-breadcrumb button {
+  width: auto;
+  margin: 0;
+  padding: 4px 0;
+}

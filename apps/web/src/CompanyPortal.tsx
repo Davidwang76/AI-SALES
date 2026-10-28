@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowUpRight, Building2, Heart, ArrowLeft } from "lucide-react";
 import { api } from "./api";
+import { PracticePortal } from "./PracticePortal";
 export type Company = {
   slot: number;
   display_name: string;
@@ -58,21 +59,8 @@ export function CompanyPortal({
         {renderCompany(company)}
       </>
     );
-  if (path === "/practice")
-    return (
-      <div className="portal-page">
-        <button className="text" onClick={() => go("/")}>
-          <ArrowLeft size={17} />
-          返回首页
-        </button>
-        <section className="practice-welcome">
-          <Heart size={38} />
-          <h1>个人修炼＋家庭修炼</h1>
-          <p>这个入口已预留，具体功能尚未开通。</p>
-          <p>公司业务数据不会在这里展示。</p>
-        </section>
-      </div>
-    );
+  if (path === "/practice" || path.startsWith("/practice/"))
+    return <PracticePortal path={path} onGo={go} />;
   return (
     <div className="portal-page">
       <header className="portal-header">
