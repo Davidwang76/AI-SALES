@@ -1001,3 +1001,138 @@ td b {
     grid-template-columns: 1fr;
   }
 }
+
+/* Group navigation around daily work; keep secondary tools discoverable. */
+.nav-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  margin-bottom: 12px;
+  border: 1px solid #527565;
+  border-radius: 7px;
+}
+.nav-search input {
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  padding: 9px 0;
+  margin: 0;
+  font-size: 12px;
+}
+.nav-search input::placeholder {
+  color: #b5cbbf;
+}
+.nav-search button {
+  width: auto;
+  padding: 5px;
+  margin: 0;
+}
+.nav-group {
+  margin-top: 8px;
+}
+nav .nav-group-toggle {
+  color: #d9e6df;
+  padding: 9px 8px;
+  font-weight: 600;
+  gap: 7px;
+}
+.nav-group-toggle small {
+  margin-left: auto;
+  color: #afc8ba;
+}
+.nav-group-toggle .expanded {
+  transform: rotate(90deg);
+}
+.nav-group > div > button {
+  padding-left: 20px;
+}
+.nav-results > small {
+  display: block;
+  padding: 6px 8px;
+  color: #c1d4c9;
+}
+.nav-results p {
+  padding: 8px;
+  color: #c1d4c9;
+}
+.more-fields {
+  border-top: 1px solid #e1e8e3;
+  margin-top: 20px;
+  padding-top: 14px;
+}
+.more-fields summary {
+  cursor: pointer;
+  color: #29634d;
+  font-weight: 500;
+  padding: 4px 0;
+}
+.quick-start h2 {
+  margin-bottom: 18px;
+}
+.quick-start-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.quick-start-grid button {
+  text-align: left;
+  justify-content: flex-start;
+  padding: 18px 14px;
+}
+.quick-start-grid button > svg {
+  flex-shrink: 0;
+}
+.quick-start-grid span {
+  flex: 1;
+}
+.quick-start-grid b,
+.quick-start-grid small {
+  display: block;
+}
+.quick-start-grid small {
+  margin-top: 7px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+@media (max-width: 1100px) {
+  .quick-start-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.collection-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  border: 2px dashed #a6bfb1;
+  border-radius: 12px;
+  background: #f4f8f5;
+  text-align: center;
+  padding: 26px 14px;
+  margin-top: 20px;
+}
+.collection-preview {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+}
+.collection-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+.collection-preview p {
+  overflow-wrap: anywhere;
+  margin-bottom: 6px;
+}
+.collection-modal input[hidden] {
+  display: none;
+}
+.collection-modal footer {
+  flex-wrap: wrap;
+}

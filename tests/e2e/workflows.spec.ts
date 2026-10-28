@@ -16,6 +16,13 @@ async function login(page: Page) {
     .toContain("session");
   await expect(page.getByRole("heading", { name: "经营工作台" })).toBeVisible();
 }
+async function navigate(page: Page, label: string) {
+  const nav = page.getByRole("navigation", { name: "功能导航" });
+  const target = nav.getByRole("button", { name: label, exact: true });
+  if (!(await target.isVisible()))
+    await nav.getByRole("textbox", { name: "找功能" }).fill(label);
+  await target.click();
+}
 test("桌面两条获客链：活动、采集、核实、客户、公共留资持久保存", async ({
   page,
   context,
@@ -23,7 +30,7 @@ test("桌面两条获客链：活动、采集、核实、客户、公共留资�
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page);
-  await page.getByRole("button", { name: "展会与推广", exact: true }).click();
+  await navigate(page, "展会与推广");
   await page.getByRole("button", { name: "新建", exact: true }).click();
   await page.getByLabel("活动名称").fill("虚构 E2E 展会");
   await page.getByLabel("活动类型").selectOption("exhibition");
@@ -31,10 +38,11 @@ test("桌面两条获客链：活动、采集、核实、客户、公共留资�
   await expect(
     page.locator("td").getByText("虚构 E2E 展会", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await navigate(page, "线索处理");
   await page.getByRole("button", { name: "现场采集", exact: true }).click();
   await page.getByLabel("来源活动").selectOption({ label: "虚构 E2E 展会" });
   await page.getByLabel("客户公司").fill("虚构 E2E 进口商");
+  await page.getByText("补充联系人、国家与联系许可", { exact: true }).click();
   await page.getByLabel("联系人", { exact: true }).fill("Fictional Buyer");
   await page.getByLabel("邮箱", { exact: true }).fill("browser@example.com");
   await page
@@ -57,11 +65,11 @@ test("桌面两条获客链：活动、采集、核实、客户、公共留资�
     page.getByRole("heading", { name: "联系人与许可" }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "客户资产", exact: true }).click();
+  await navigate(page, "客户资产");
   await expect(
     page.locator("td").getByText("虚构 E2E 进口商", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "展会与推广", exact: true }).click();
+  await navigate(page, "展会与推广");
   await page.getByRole("button", { name: "新建", exact: true }).click();
   await page.getByLabel("活动名称").fill("虚构 E2E 线上");
   await page.getByLabel("活动类型").selectOption("online");
@@ -82,7 +90,7 @@ test("桌面两条获客链：活动、采集、核实、客户、公共留资�
   await expect(
     publicPage.getByRole("heading", { name: "Thank you." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await navigate(page, "线索处理");
   await expect(
     page.locator("td").getByText("虚构 E2E 线上买家", { exact: true }),
   ).toBeVisible();
@@ -96,12 +104,13 @@ test("手机弱网：文字草稿明确未上传，恢复后提交；导航不�
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await page.getByRole("button", { name: "打开导航" }).click();
-  await page.getByRole("button", { name: "线索处理", exact: true }).click();
+  await navigate(page, "线索处理");
   await page.getByRole("button", { name: "现场采集", exact: true }).click();
   await page.getByLabel("来源活动").selectOption({ label: "虚构 E2E 展会" });
   await page.getByLabel("客户公司").fill("虚构弱网采集");
   await page.getByLabel("邮箱", { exact: true }).fill("offline@example.com");
   await page.getByLabel("会谈 / 原始需求").fill("离线文字保留，未上传。");
+  await page.getByText("补充联系人、国家与联系许可", { exact: true }).click();
   await page.getByLabel("联系许可").selectOption("unknown");
   await context.setOffline(true);
   await page.getByRole("button", { name: "提交到服务器" }).click();
@@ -212,7 +221,7 @@ test("采购报价到订单：真实数据库计算、界面审批与确认订�
   await post(`supplier-responses/${offer.id}/select`, {
     reason: "合成质量与交期确认",
   });
-  await page.getByRole("button", { name: "报价与审批", exact: true }).click();
+  await navigate(page, "报价与审批");
   await page.getByRole("button", { name: "新建", exact: true }).click();
   await page.getByLabel("客户采购需求").selectOption(rfq.id);
   await page.getByLabel("收件联系人").selectOption(converted.contact_id);
@@ -242,7 +251,7 @@ test("采购报价到订单：真实数据库计算、界面审批与确认订�
     .fill("来源、适配、毛利、条款均按合成案例核对");
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByText("已批准", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "订单与回款", exact: true }).click();
+  await navigate(page, "订单与回款");
   await page.getByRole("button", { name: "新建", exact: true }).click();
   await page.getByLabel("已批准报价").selectOption(revision.quote_id);
   await page.getByLabel("原件 / 依据").selectOption(source.id);
@@ -251,6 +260,98 @@ test("采购报价到订单：真实数据库计算、界面审批与确认订�
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await page.screenshot({
     path: "test-results/commercial.png",
+    fullPage: true,
+  });
+});
+
+test("少填资料采集：折叠菜单、功能搜索、粘贴截图和原文持久保存", async ({
+  page,
+}) => {
+  await login(page);
+  const nav = page.getByRole("navigation", { name: "功能导航" });
+  await expect(
+    nav.getByRole("button", { name: "团队与权限", exact: true }),
+  ).not.toBeVisible();
+  await nav.getByRole("textbox", { name: "找功能" }).fill("员工");
+  await nav.getByRole("button", { name: "团队与权限", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "团队与权限", exact: true }),
+  ).toBeVisible();
+  await nav.getByRole("button", { name: "经营工作台", exact: true }).click();
+  await page.getByRole("button", { name: /先收集资料/ }).click();
+  await expect(page.getByRole("heading", { name: "先收集资料" })).toBeVisible();
+  await page.evaluate(() => {
+    const data = new DataTransfer();
+    const bytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX8sAAAAASUVORK5CYII=",
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    data.items.add(
+      new File([bytes], "合成测试截图.png", { type: "image/png" }),
+    );
+    document
+      .querySelector(".collection-modal")!
+      .dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: data, bubbles: true }),
+      );
+  });
+  await expect(page.getByAltText("待保存资料预览")).toBeVisible();
+  const upload = page.waitForResponse(
+    (r) => r.url().endsWith("/api/v1/files") && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "保存到资料箱", exact: true }).click();
+  const uploaded = await (await upload).json();
+  expect(uploaded.data.storage_key).toBeTruthy();
+  await expect(
+    page.locator("td").getByText("合成测试截图.png", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "收集资料", exact: true }).click();
+  await page.getByRole("button", { name: "粘贴原文", exact: true }).click();
+  const original = "合成测试客户原话：先留住需求，尚未核实公司和联系方式。";
+  await page.getByRole("textbox", { name: "采集原文" }).fill(original);
+  await page.getByRole("button", { name: "保存到资料箱", exact: true }).click();
+  await expect(
+    page.locator("td").getByText(original.slice(0, 40), { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await page
+    .getByRole("navigation", { name: "功能导航" })
+    .getByRole("button", { name: "采集资料箱", exact: true })
+    .click();
+  await page
+    .locator("td")
+    .getByText(original.slice(0, 40), { exact: true })
+    .click();
+  await expect(
+    page.locator("article").getByText(original, { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/collection-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "打开导航" }).click();
+  await page
+    .getByRole("navigation", { name: "功能导航" })
+    .getByRole("button", { name: "采集资料箱", exact: true })
+    .click();
+  await page.getByRole("button", { name: "收集资料", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "手机拍照", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("拍摄资料")).toHaveAttribute(
+    "capture",
+    "environment",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/collection-mobile.png",
     fullPage: true,
   });
 });

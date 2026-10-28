@@ -1,5 +1,6 @@
 {
     auto_https disable_redirects
+    default_sni 49.233.175.166
 }
 
 https://49.233.175.166 {

@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { api, setEntity, entity, download } from "./api";
 import "./style.css";
+import { CollectionForm } from "./CollectionForm";
+import { Navigation } from "./Navigation";
 type Row = Record<string, any>;
 const labels: Record<string, string> = {
   exhibition: "行业展会",
@@ -132,6 +134,45 @@ function Form({
 }) {
   const [error, err] = useState(""),
     [busy, b] = useState(false);
+  const compact = title === "新建展会 / 线上活动";
+  const secondaryField = (f: Field) =>
+    compact && (f.required === false || f.value !== undefined);
+  const renderField = (f: Field) => (
+    <label key={f.key}>
+      {f.label}
+      {f.required !== false && <span className="required"> *</span>}
+      {f.type === "textarea" ? (
+        <textarea
+          name={f.key}
+          required={f.required !== false}
+          defaultValue={f.value}
+          rows={4}
+        />
+      ) : f.options ? (
+        <select
+          name={f.key}
+          required={f.required !== false}
+          defaultValue={f.value || ""}
+        >
+          <option value="">请选择</option>
+          {f.options.map((o) => (
+            <option value={o.value} key={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          name={f.key}
+          type={f.type || "text"}
+          required={f.required !== false}
+          defaultValue={f.value}
+          step={f.type === "number" ? "any" : undefined}
+        />
+      )}{" "}
+      {f.hint && <small>{f.hint}</small>}
+    </label>
+  );
   return (
     <div className="overlay">
       <section className="modal">
@@ -156,42 +197,18 @@ function Form({
             }
           }}
         >
-          {fields.map((f) => (
-            <label key={f.key}>
-              {f.label}
-              {f.required !== false && <span className="required"> *</span>}
-              {f.type === "textarea" ? (
-                <textarea
-                  name={f.key}
-                  required={f.required !== false}
-                  defaultValue={f.value}
-                  rows={4}
-                />
-              ) : f.options ? (
-                <select
-                  name={f.key}
-                  required={f.required !== false}
-                  defaultValue={f.value || ""}
-                >
-                  <option value="">请选择</option>
-                  {f.options.map((o) => (
-                    <option value={o.value} key={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  name={f.key}
-                  type={f.type || "text"}
-                  required={f.required !== false}
-                  defaultValue={f.value}
-                  step={f.type === "number" ? "any" : undefined}
-                />
-              )}{" "}
-              {f.hint && <small>{f.hint}</small>}
-            </label>
-          ))}
+          {fields.filter((f) => !secondaryField(f)).map(renderField)}
+          {fields.some(secondaryField) && (
+            <details
+              className="more-fields"
+              onInvalidCapture={(e) => {
+                e.currentTarget.open = true;
+              }}
+            >
+              <summary>补充资料与默认设置（可展开修改）</summary>
+              {fields.filter(secondaryField).map(renderField)}
+            </details>
+          )}
           {error && (
             <p className="error" role="alert">
               {error}
@@ -233,6 +250,7 @@ function App() {
     [loading, loadingSet] = useState(false);
   const menu = [
     ["home", "经营工作台", LayoutDashboard],
+    ["sources", "采集资料箱", Inbox],
     ["market-tasks", "市场开发", Globe2],
     ["activities", "展会与推广", CalendarDays],
     ["leads", "线索处理", ListChecks],
@@ -379,7 +397,8 @@ function App() {
       (v) => api("sources", "POST", v),
     );
   function add() {
-    if (section === "market-tasks")
+    if (section === "sources") collect();
+    else if (section === "market-tasks")
       form(
         "新建市场开发任务",
         [
@@ -414,7 +433,7 @@ function App() {
           },
           { key: "country", label: "国家", required: false },
           { key: "city", label: "城市", required: false },
-          { key: "timezone", label: "IANA时区", value: "Asia/Shanghai" },
+          { key: "timezone", label: "活动时区", value: "Asia/Shanghai" },
           {
             key: "start_at",
             label: "开始日期",
@@ -724,11 +743,27 @@ function App() {
           }),
       );
   }
-  function capture() {
+  function collect() {
+    M(
+      <CollectionForm
+        onClose={() => M(null)}
+        onSaved={() => {
+          go("sources");
+          refresh();
+          T("原件已保存到资料箱，尚未整理为客户");
+        }}
+      />,
+    );
+  }
+  function capture(source?: Row) {
     let saved: Row = {};
     try {
       saved = JSON.parse(localStorage.getItem("capture:" + entity) || "{}");
     } catch {}
+    if (source) {
+      saved.source_id = source.id;
+      localStorage.setItem("capture:" + entity, JSON.stringify(saved));
+    }
     if (!saved.event_id) {
       saved.event_id = crypto.randomUUID();
       localStorage.setItem("capture:" + entity, JSON.stringify(saved));
@@ -750,6 +785,9 @@ function App() {
         ],
       },
     ];
+    saved.permission ||= "unknown";
+    if (!saved.activity_id && cache.activities?.length === 1)
+      saved.activity_id = cache.activities[0].id;
     const event_id = saved.event_id || crypto.randomUUID();
     M(
       <CaptureForm
@@ -863,20 +901,7 @@ function App() {
             汽配外贸运营<small>SALES OPERATING SYSTEM</small>
           </div>
         </a>
-        <div className="nav-label">业务空间</div>
-        <nav>
-          {menu.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              className={section === key ? "active" : ""}
-              onClick={() => go(key)}
-            >
-              <Icon size={18} />
-              {label}
-              {section === key && <span className="nav-dot" />}
-            </button>
-          ))}
-        </nav>
+        <Navigation items={menu} section={section} onGo={go} />
         <div className="sidebar-bottom">
           <span className="live-dot" /> 数据库持久保存
           <br />
@@ -1005,7 +1030,11 @@ function App() {
               ].includes(section) && (
                 <button onClick={add}>
                   <Plus size={17} />
-                  {section === "leads" ? "现场采集" : "新建"}
+                  {section === "leads"
+                    ? "现场采集"
+                    : section === "sources"
+                      ? "收集资料"
+                      : "新建"}
                 </button>
               )}
             </div>
@@ -1026,6 +1055,35 @@ function App() {
           )}
           {section === "home" && dash && (
             <>
+              <section className="panel quick-start">
+                <h2>你现在要做什么？</h2>
+                <div className="quick-start-grid">
+                  <button className="secondary" onClick={collect}>
+                    <Plus size={21} />
+                    <span>
+                      <b>先收集资料</b>
+                      <small>拍照、粘贴截图或原文，不必先填档案</small>
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                  <button className="secondary" onClick={() => go("tasks")}>
+                    <ListChecks size={21} />
+                    <span>
+                      <b>处理跟进待办</b>
+                      <small>查看已分配的任务，推进下一步</small>
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                  <button className="secondary" onClick={() => go("accounts")}>
+                    <Users size={21} />
+                    <span>
+                      <b>查找已有客户</b>
+                      <small>打开客户档案，继续沟通或整理询盘</small>
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+              </section>
               <div className="stats">
                 {[
                   ["leads", "待处理入口", "原始线索"],
@@ -1110,7 +1168,7 @@ function App() {
                     <CalendarDays />
                     <h3>行业展会</h3>
                     <p>现场采集 → 核实归属 → 会后跟进</p>
-                    <button className="secondary" onClick={capture}>
+                    <button className="secondary" onClick={() => capture()}>
                       采集一条线索 <ArrowUpRight size={15} />
                     </button>
                   </div>
@@ -1456,7 +1514,7 @@ function App() {
                     预算 {detail.budget} {detail.currency} · 实际费用另行登记
                   </p>
                   <div className="actions">
-                    <button onClick={capture}>采集线索</button>
+                    <button onClick={() => capture()}>采集线索</button>
                     {detail.type === "online" && (
                       <button
                         className="secondary"
@@ -1603,6 +1661,51 @@ function App() {
                   )}
                   {detail.importResults && (
                     <pre>{JSON.stringify(detail.importResults, null, 2)}</pre>
+                  )}
+                </>
+              )}
+              {section === "sources" && (
+                <>
+                  <h2>{detail.name}</h2>
+                  <p>
+                    {detail.storage_key
+                      ? "原件已保存，内容待人工核实"
+                      : "原文已保存，可核实并关联为客户线索"}
+                  </p>
+                  {detail.body && <article>{detail.body}</article>}
+                  {detail.storage_key && (
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        act(async () => {
+                          const r = await fetch(
+                            `/api/v1/files/${detail.id}/download`,
+                            { headers: { "X-Entity-Id": entity } },
+                          );
+                          if (!r.ok) throw new Error("原件下载失败");
+                          const url = URL.createObjectURL(await r.blob());
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = detail.name;
+                          a.click();
+                          setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        }, "已下载原件")
+                      }
+                    >
+                      下载原件查看
+                    </button>
+                  )}
+                  <p>
+                    核对原件后，再补充公司、联系方式和来源活动。图片文字识别尚未接通。
+                  </p>
+                  {cache.activities?.length ? (
+                    <button onClick={() => capture(detail)}>
+                      核实并整理为客户线索
+                    </button>
+                  ) : (
+                    <button onClick={() => go("activities")}>
+                      先创建来源活动
+                    </button>
                   )}
                 </>
               )}
@@ -3785,6 +3888,35 @@ function CaptureForm({
   const [error, E] = useState(""),
     [file, F] = useState<File | null>(null),
     [busy, B] = useState(false);
+  const renderField = (f: Field) => (
+    <label key={f.key}>
+      {f.label}
+      {f.options ? (
+        <select name={f.key} defaultValue={saved[f.key] || ""} required>
+          <option value="">请选择</option>
+          {f.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : f.type === "textarea" ? (
+        <textarea
+          rows={4}
+          name={f.key}
+          defaultValue={saved[f.key]}
+          required={f.required !== false}
+        />
+      ) : (
+        <input
+          name={f.key}
+          type={f.type || "text"}
+          defaultValue={saved[f.key]}
+          required={f.required !== false}
+        />
+      )}
+    </label>
+  );
   return (
     <div className="overlay">
       <section className="modal">
@@ -3818,6 +3950,11 @@ function CaptureForm({
             E("");
             const data = Object.fromEntries(new FormData(e.currentTarget));
             try {
+              if (
+                !String(data.email || "").trim() &&
+                !String(data.phone || "").trim()
+              )
+                throw new Error("邮箱或电话至少填写一项，方便后续跟进。");
               let source_id =
                 JSON.parse(localStorage.getItem("capture:" + entity) || "{}")
                   .source_id || saved.source_id;
@@ -3850,35 +3987,32 @@ function CaptureForm({
             }
           }}
         >
-          {fields.map((f) => (
-            <label key={f.key}>
-              {f.label}
-              {f.options ? (
-                <select name={f.key} defaultValue={saved[f.key] || ""} required>
-                  <option value="">请选择</option>
-                  {f.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === "textarea" ? (
-                <textarea
-                  rows={4}
-                  name={f.key}
-                  defaultValue={saved[f.key]}
-                  required={f.required !== false}
-                />
-              ) : (
-                <input
-                  name={f.key}
-                  type={f.type || "text"}
-                  defaultValue={saved[f.key]}
-                  required={f.required !== false}
-                />
-              )}
-            </label>
-          ))}
+          <p>
+            先记下公司、邮箱或电话，以及客户原话。联系人、国家等可展开补充。
+          </p>
+          {fields
+            .filter((f) =>
+              ["activity_id", "company", "email", "phone", "notes"].includes(
+                f.key,
+              ),
+            )
+            .map(renderField)}
+          <details className="more-fields">
+            <summary>补充联系人、国家与联系许可</summary>
+            <small>默认联系许可为待核实，不代表客户已同意联系。</small>
+            {fields
+              .filter(
+                (f) =>
+                  ![
+                    "activity_id",
+                    "company",
+                    "email",
+                    "phone",
+                    "notes",
+                  ].includes(f.key),
+              )
+              .map(renderField)}
+          </details>
           <label>
             名片 / 需求原件（可选，25MB以内）
             <input
