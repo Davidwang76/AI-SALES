@@ -1415,3 +1415,118 @@ nav .nav-group-toggle {
   margin: 0;
   padding: 4px 0;
 }
+.homepage-tools {
+  margin: 30px 0 20px;
+}
+.homepage-tools h2 {
+  font-size: 18px;
+}
+.homepage-tool {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+  padding: 26px;
+  background: #fff;
+  color: #315740;
+  text-align: left;
+  border: 1px solid #dfe6dd;
+  border-radius: 14px;
+}
+.homepage-tool > span {
+  flex: 1;
+}
+.homepage-tool b,
+.homepage-tool small {
+  display: block;
+}
+.homepage-tool b {
+  font-size: 21px;
+}
+.homepage-tool small {
+  margin-top: 10px;
+  line-height: 1.7;
+}
+.goal-company-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.goal-company-list button {
+  justify-content: space-between;
+}
+.goal-toolbar,
+.goal-filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.goal-toolbar {
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.goal-filters label {
+  margin: 0;
+}
+.goal-filters select {
+  min-width: 100px;
+}
+.goal-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+.goal-empty > svg {
+  margin-bottom: 18px;
+  color: #749d7b;
+}
+.goal-card {
+  white-space: normal;
+  margin: 16px 0;
+  background: white;
+  padding: 22px;
+}
+.goal-card h2 {
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.goal-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.goal-note {
+  white-space: pre-wrap;
+  margin: 14px 0 6px;
+}
+.goal-actions {
+  margin-top: 18px;
+}
+.goal-children {
+  margin-top: 20px;
+  padding-left: 16px;
+  border-left: 2px solid #d4e3d4;
+}
+.goal-children .goal-card {
+  background: #f9fbf8;
+}
+.goal-children .goal-children .goal-card {
+  background: white;
+}
+@media (max-width: 700px) {
+  .goal-company-list {
+    grid-template-columns: 1fr;
+  }
+  .goal-card {
+    padding: 15px 12px;
+  }
+  .goal-children {
+    padding-left: 7px;
+  }
+  .homepage-tool {
+    padding: 20px 15px;
+    gap: 12px;
+  }
+  .homepage-tool b {
+    font-size: 18px;
+  }
+}

@@ -28,6 +28,7 @@ import { api, setEntity, entity, download } from "./api";
 import "./style.css";
 import { CollectionForm } from "./CollectionForm";
 import { CompanyPortal, type Company } from "./CompanyPortal";
+import { GoalsWorkspace } from "./GoalsWorkspace";
 import { CompanyWorkspace } from "./CompanyWorkspace";
 import { Navigation } from "./Navigation";
 type Row = Record<string, any>;
@@ -246,7 +247,11 @@ function App({ company }: { company?: Company }) {
   const [offset, O] = useState(0);
   const [session, S] = useState<Row | null>(null),
     [ready, R] = useState(false),
-    [section, N] = useState("home"),
+    [section, N] = useState(
+      new URLSearchParams(location.search).get("tool") === "goals"
+        ? "goals"
+        : "home",
+    ),
     [rows, D] = useState<Row[]>([]),
     [cache, C] = useState<Record<string, Row[]>>({}),
     [dash, H] = useState<Row | null>(null),
@@ -257,8 +262,10 @@ function App({ company }: { company?: Company }) {
     [query, Q] = useState(""),
     [mobile, B] = useState(false),
     [loading, loadingSet] = useState(false);
+  const [goalsRefresh, setGoalsRefresh] = useState(0);
   const menu = [
     ["home", "经营工作台", LayoutDashboard],
+    ["goals", "季月旬目标管理", ListChecks],
     ["sources", "采集资料箱", Inbox],
     ["market-tasks", "市场开发", Globe2],
     ["activities", "展会与推广", CalendarDays],
@@ -298,6 +305,17 @@ function App({ company }: { company?: Company }) {
   }, []);
   async function refresh() {
     if (!session) return;
+    if (section === "goals") {
+      E("");
+      try {
+        const members = await api("members");
+        C((v) => ({ ...v, members }));
+      } catch (e: any) {
+        E(e.message);
+      }
+      setGoalsRefresh((v) => v + 1);
+      return;
+    }
     loadingSet(true);
     E("");
     try {
@@ -352,6 +370,10 @@ function App({ company }: { company?: Company }) {
     O(0);
     Q("");
     N(key);
+    const route = new URL(location.href);
+    if (key === "goals") route.searchParams.set("tool", "goals");
+    else route.searchParams.delete("tool");
+    history.replaceState({}, "", route.pathname + route.search);
     V(null);
     B(false);
   }
@@ -919,7 +941,7 @@ function App({ company }: { company?: Company }) {
             go("home");
           }}
         >
-          <span>SRR</span>
+          <span>{company?.display_name || "公司"}</span>
           <div>
             {company?.display_name ||
               (company
@@ -931,9 +953,13 @@ function App({ company }: { company?: Company }) {
         <Navigation
           items={menu.filter(
             ([key]) =>
-              ["home", "members", "integrations", "audit-events"].includes(
-                key,
-              ) || session.workspace?.modules.includes(key),
+              [
+                "home",
+                "goals",
+                "members",
+                "integrations",
+                "audit-events",
+              ].includes(key) || session.workspace?.modules.includes(key),
           )}
           section={section}
           onGo={go}
@@ -1029,7 +1055,9 @@ function App({ company }: { company?: Company }) {
         <div className="content">
           <div className="page-heading">
             <div>
-              <div className="eyebrow">SRR / WORKSPACE</div>
+              <div className="eyebrow">
+                {company?.display_name || "COMPANY"} / WORKSPACE
+              </div>
               <h1>
                 {detail ? (
                   <>
@@ -1067,6 +1095,7 @@ function App({ company }: { company?: Company }) {
               </button>
               {![
                 "home",
+                "goals",
                 "accounts",
                 "integrations",
                 "audit-events",
@@ -1112,6 +1141,7 @@ function App({ company }: { company?: Company }) {
                   ([key]) =>
                     ![
                       "home",
+                      "goals",
                       "members",
                       "integrations",
                       "audit-events",
@@ -1296,7 +1326,17 @@ function App({ company }: { company?: Company }) {
                 </section>
               </>
             )}
-          {section !== "home" && !detail && (
+          {section === "goals" && (
+            <GoalsWorkspace
+              role={
+                session.entities.find((v: Row) => v.id === entity)?.role ||
+                "viewer"
+              }
+              members={cache.members || []}
+              refreshKey={goalsRefresh}
+            />
+          )}
+          {section !== "home" && section !== "goals" && !detail && (
             <>
               <div className="toolbar">
                 <div className="search">
@@ -3536,7 +3576,9 @@ function App({ company }: { company?: Company }) {
           )}
         </div>
         <footer className="app-footer">
-          SRR 汽配外贸运营 · V2.0 <span>北京时间 · 业务状态由服务端校验</span>
+          {company?.display_name || "公司工作空间"}
+          {company?.subtitle ? ` · ${company.subtitle}` : ""}{" "}
+          <span>北京时间 · 业务状态由服务端校验</span>
         </footer>
       </main>
       {modal}

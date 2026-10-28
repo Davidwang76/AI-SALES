@@ -5,7 +5,15 @@ type Item = readonly [string, string, LucideIcon];
 const groups = [
   {
     name: "日常工作",
-    keys: ["sources", "tasks", "leads", "accounts", "conversations", "rfqs"],
+    keys: [
+      "goals",
+      "sources",
+      "tasks",
+      "leads",
+      "accounts",
+      "conversations",
+      "rfqs",
+    ],
   },
   { name: "获客与推广", keys: ["activities", "market-tasks", "knowledge"] },
   {
@@ -33,6 +41,7 @@ const groups = [
   },
 ];
 const aliases: Record<string, string> = {
+  goals: "季度 月度 旬 目标 计划 执行 分解",
   sources: "拍照 截图 粘贴 原文 采集 资料箱 文件 上传",
   tasks: "待办 跟进 工时",
   leads: "采集 名片 录入",

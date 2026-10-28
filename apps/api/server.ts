@@ -32,6 +32,7 @@ import {
   type Actor,
 } from "./context.js";
 import { leadInput, captureLead, convertLead } from "./leads.js";
+import { registerGoals } from "./goals.js";
 import { registerOperations } from "./operations.js";
 import { registerTrade } from "./trade.js";
 export async function buildApp() {
@@ -2151,6 +2152,7 @@ export async function buildApp() {
       ),
     });
   });
+  await registerGoals(app);
   await registerTrade(app);
   await registerOperations(app);
   try {

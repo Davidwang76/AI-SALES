@@ -481,3 +481,94 @@ test("修炼导航：个人四栏目、家庭6Q与维度入口、返回及刷新
     fullPage: true,
   });
 });
+
+test("首页功能到季月旬：公司登录、分解、进展、完成约束与刷新持久读取", async ({
+  page,
+}) => {
+  const key = Date.now().toString();
+  await page.goto("/");
+  await page.getByRole("button", { name: /^季月旬目标管理/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "先选择目标所属公司" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /^01 · SRR/ }).click();
+  await page.getByLabel("用户名", { exact: true }).fill(email);
+  await page.getByLabel("密码", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "登录工作台", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "季月旬目标管理", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("目标年份").selectOption("2028");
+  await page.getByLabel("目标季度").selectOption("1");
+  await page.getByRole("button", { name: "新建季度目标", exact: true }).click();
+  await page.getByLabel("目标名称").fill("合成季度目标" + key);
+  await page.getByRole("button", { name: "保存目标", exact: true }).click();
+  const quarter = page
+    .locator(".goal-quarter")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "合成季度目标" + key,
+        exact: true,
+      }),
+    });
+  await quarter.getByRole("button", { name: "分解到月", exact: true }).click();
+  await page.getByLabel("目标名称").fill("合成月度目标" + key);
+  await page.getByLabel("目标月份").selectOption("2");
+  await page.getByRole("button", { name: "保存目标", exact: true }).click();
+  const month = page
+    .locator(".goal-month")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "合成月度目标" + key,
+        exact: true,
+      }),
+    });
+  await month.getByRole("button", { name: "分解到旬", exact: true }).click();
+  await page.getByLabel("目标名称").fill("合成旬目标" + key);
+  await page.getByLabel("执行旬").selectOption("3");
+  await page.getByRole("button", { name: "保存目标", exact: true }).click();
+  const ten = page
+    .locator(".goal-ten_day")
+    .filter({
+      has: page.getByRole("heading", { name: "合成旬目标" + key, exact: true }),
+    });
+  await expect(ten).toContainText("2028-02-21—2028-02-29");
+  await quarter
+    .locator(":scope > .goal-actions")
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("下级目标未结束");
+  await ten.getByRole("button", { name: "记录进展", exact: true }).click();
+  await page.getByLabel("进展或完成结果").fill("合成执行结果已经记录");
+  await page.getByRole("button", { name: "保存目标", exact: true }).click();
+  await ten.getByRole("button", { name: "完成", exact: true }).click();
+  await month
+    .locator(":scope > .goal-actions")
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
+  await quarter
+    .locator(":scope > .goal-actions")
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
+  await expect(quarter.locator(":scope > .goal-heading")).toContainText(
+    "已完成",
+  );
+  await page.reload();
+  await page.getByLabel("目标年份").selectOption("2028");
+  await page.getByLabel("目标季度").selectOption("1");
+  await expect(ten).toContainText("合成执行结果已经记录");
+  await page.screenshot({
+    path: "test-results/goals-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/goals-mobile.png",
+    fullPage: true,
+  });
+});

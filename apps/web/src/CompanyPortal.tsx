@@ -1,6 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowUpRight, Building2, Heart, ArrowLeft } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  Heart,
+  ArrowLeft,
+  Target,
+} from "lucide-react";
 import { api } from "./api";
+import { GoalEntry } from "./GoalEntry";
 import { PracticePortal } from "./PracticePortal";
 export type Company = {
   slot: number;
@@ -14,7 +21,7 @@ export function CompanyPortal({
   renderCompany: (company: Company) => ReactNode;
 }) {
   const [entries, setEntries] = useState<Company[]>([]);
-  const [path, setPath] = useState(location.pathname);
+  const [path, setPath] = useState(location.pathname + location.search);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   async function load() {
@@ -30,7 +37,7 @@ export function CompanyPortal({
   }
   useEffect(() => {
     load();
-    const back = () => setPath(location.pathname);
+    const back = () => setPath(location.pathname + location.search);
     addEventListener("popstate", back);
     return () => removeEventListener("popstate", back);
   }, []);
@@ -38,7 +45,17 @@ export function CompanyPortal({
     history.pushState({}, "", next);
     setPath(next);
   }
-  const match = path.match(/^\/company\/(\d{2})$/);
+  if (path === "/tools/goals")
+    return (
+      <GoalEntry
+        companies={entries}
+        onGo={go}
+        loading={loading}
+        error={error}
+        onRetry={load}
+      />
+    );
+  const match = path.split("?")[0].match(/^\/company\/(\d{2})$/);
   const company = match
     ? entries.find((v) => v.slot === Number(match[1]))
     : undefined;
@@ -116,6 +133,17 @@ export function CompanyPortal({
         </span>
         <ArrowUpRight size={22} />
       </button>
+      <section className="homepage-tools" aria-label="常用功能">
+        <h2>常用功能</h2>
+        <button className="homepage-tool" onClick={() => go("/tools/goals")}>
+          <Target size={29} />
+          <span>
+            <b>季月旬目标管理</b>
+            <small>季度定方向 · 月度做分解 · 旬度看执行</small>
+          </span>
+          <ArrowUpRight size={23} />
+        </button>
+      </section>
       <footer className="portal-footer">
         请选择自己所属的公司 · 各公司账号与业务权限独立
       </footer>
