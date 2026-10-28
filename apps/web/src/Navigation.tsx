@@ -118,39 +118,49 @@ export function Navigation({
       ) : (
         <>
           {items.filter(([key]) => key === "home").map(entry)}
-          {groups.map((group) => (
-            <div className="nav-group" key={group.name}>
-              <button
-                className="nav-group-toggle"
-                aria-label={group.name}
-                aria-expanded={expanded.includes(group.name)}
-                aria-controls={`nav-${group.keys[0]}`}
-                onClick={() =>
-                  setExpanded((v) =>
-                    v.includes(group.name)
-                      ? v.filter((n) => n !== group.name)
-                      : [...v, group.name],
-                  )
-                }
-              >
-                <ChevronRight
-                  size={15}
-                  className={expanded.includes(group.name) ? "expanded" : ""}
-                />
-                {group.name}
-                <small>{group.keys.length}</small>
-              </button>
-              <div
-                id={`nav-${group.keys[0]}`}
-                hidden={!expanded.includes(group.name)}
-              >
-                {group.keys
-                  .map((key) => items.find((item) => item[0] === key))
-                  .filter((item): item is Item => Boolean(item))
-                  .map(entry)}
+          {groups
+            .filter((group) =>
+              group.keys.some((key) => items.some((item) => item[0] === key)),
+            )
+            .map((group) => (
+              <div className="nav-group" key={group.name}>
+                <button
+                  className="nav-group-toggle"
+                  aria-label={group.name}
+                  aria-expanded={expanded.includes(group.name)}
+                  aria-controls={`nav-${group.keys[0]}`}
+                  onClick={() =>
+                    setExpanded((v) =>
+                      v.includes(group.name)
+                        ? v.filter((n) => n !== group.name)
+                        : [...v, group.name],
+                    )
+                  }
+                >
+                  <ChevronRight
+                    size={15}
+                    className={expanded.includes(group.name) ? "expanded" : ""}
+                  />
+                  {group.name}
+                  <small>
+                    {
+                      group.keys.filter((key) =>
+                        items.some((item) => item[0] === key),
+                      ).length
+                    }
+                  </small>
+                </button>
+                <div
+                  id={`nav-${group.keys[0]}`}
+                  hidden={!expanded.includes(group.name)}
+                >
+                  {group.keys
+                    .map((key) => items.find((item) => item[0] === key))
+                    .filter((item): item is Item => Boolean(item))
+                    .map(entry)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </>
       )}
     </nav>

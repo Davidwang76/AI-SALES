@@ -28,6 +28,7 @@ import {
   member,
   elevated,
   accountAccess,
+  companyAdmin,
   type Actor,
 } from "./context.js";
 import { leadInput, captureLead, convertLead } from "./leads.js";
@@ -129,23 +130,167 @@ export async function buildApp() {
     await pool.query("SELECT 1");
     return { status: "ok", version: "0.1.0" };
   });
+  app.get("/api/v1/public/company-portals", async () =>
+    ok(
+      (
+        await pool.query(
+          "SELECT slot,display_name,entity_id FROM company_portals ORDER BY slot",
+        )
+      ).rows,
+    ),
+  );
+  app.get("/api/v1/company-workspace", async (r) =>
+    ok(
+      (
+        await pool.query("SELECT workspace_config FROM entities WHERE id=$1", [
+          r.actor.entity,
+        ])
+      ).rows[0].workspace_config || { purpose: "", modules: [] },
+    ),
+  );
+  app.post("/api/v1/company-workspace", async (r) => {
+    permission(r.actor, ["owner"]);
+    const p = body(
+      z.object({
+        purpose: z.string().trim().max(3000),
+        modules: z
+          .array(
+            z.enum([
+              "market-tasks",
+              "activities",
+              "leads",
+              "accounts",
+              "conversations",
+              "rfqs",
+              "knowledge",
+              "products",
+              "quotes",
+              "orders",
+              "purchase-rfqs",
+              "samples",
+              "trade-documents",
+              "receipts",
+              "aftersales",
+              "automation-rules",
+              "eval-datasets",
+              "tasks",
+              "sources",
+            ]),
+          )
+          .max(19),
+      }),
+      r,
+    );
+    return ok(
+      await tx(async (db) => {
+        await companyAdmin(db, r.actor);
+        await db.query("UPDATE entities SET workspace_config=$1 WHERE id=$2", [
+          JSON.stringify(p),
+          r.actor.entity,
+        ]);
+        await audit(
+          db,
+          r.actor,
+          "company.workspace",
+          "entities",
+          r.actor.entity,
+          p,
+        );
+        return p;
+      }),
+    );
+  });
+  app.post("/api/v1/company-profile", async (r) => {
+    permission(r.actor, ["owner"]);
+    const p = body(z.object({ name: z.string().trim().min(1).max(100) }), r);
+    return ok(
+      await tx(async (db) => {
+        await companyAdmin(db, r.actor);
+        await db.query(
+          "UPDATE company_portals SET display_name=$1 WHERE entity_id=$2",
+          [p.name, r.actor.entity],
+        );
+        await db.query("UPDATE entities SET name=$1 WHERE id=$2", [
+          p.name,
+          r.actor.entity,
+        ]);
+        await audit(db, r.actor, "company.rename", "entities", r.actor.entity, {
+          name: p.name,
+        });
+        return { name: p.name };
+      }),
+    );
+  });
+  app.post("/api/v1/members/:id/role", async (r) => {
+    permission(r.actor, ["owner"]);
+    const id = z.string().uuid().parse(params(r).id);
+    ensure(
+      id !== r.actor.id,
+      "SELF_ROLE_CHANGE",
+      "不能修改自己的角色，请由另一位公司系统管理员操作",
+    );
+    const p = body(
+      z.object({
+        role: z.enum([
+          "owner",
+          "manager",
+          "sales",
+          "market",
+          "procurement",
+          "finance",
+          "viewer",
+        ]),
+      }),
+      r,
+    );
+    return ok(
+      await tx(async (db) => {
+        await companyAdmin(db, r.actor);
+        await member(db, r.actor, id);
+        await db.query(
+          "UPDATE memberships SET role=$1 WHERE user_id=$2 AND entity_id=$3",
+          [p.role, id, r.actor.entity],
+        );
+        await audit(db, r.actor, "member.role", "users", id, { role: p.role });
+        return { id, role: p.role };
+      }),
+    );
+  });
   app.post("/api/v1/session", async (r, reply) => {
     await rate(`login:${r.ip}`, 10);
     const p = body(
-      z.object({ email: z.email(), password: z.string().min(1).max(200) }),
+      z.object({
+        email: z.email().optional(),
+        username: z.string().trim().min(1).max(200).optional(),
+        entity_id: z.string().uuid().optional(),
+        password: z.string().min(1).max(200),
+      }),
       r,
     );
     const u = (
-      await pool.query("SELECT * FROM users WHERE email=$1 AND active", [
-        p.email.toLowerCase(),
-      ])
+      await pool.query(
+        "SELECT * FROM users WHERE (lower(email)=$1 OR lower(login_username)=$1) AND active",
+        [(p.username || p.email || "").toLowerCase()],
+      )
     ).rows[0];
     ensure(
       u && checkPassword(p.password, u.password_hash),
       "INVALID_LOGIN",
-      "邮箱或密码不正确",
+      "用户名或密码不正确，或账号不属于此公司",
       401,
     );
+    if (p.entity_id)
+      ensure(
+        (
+          await pool.query(
+            "SELECT 1 FROM memberships WHERE user_id=$1 AND entity_id=$2",
+            [u.id, p.entity_id],
+          )
+        ).rowCount,
+        "INVALID_LOGIN",
+        "账号、密码不正确，或账号不属于此公司",
+        401,
+      );
     const token = randomBytes(32).toString("hex");
     await pool.query(
       "INSERT INTO sessions VALUES($1,$2,now()+interval '12 hours')",
@@ -210,6 +355,7 @@ export async function buildApp() {
     ensure(id !== r.actor.id, "SELF_DEACTIVATION", "不能停用当前账号");
     return ok(
       await tx(async (db) => {
+        await companyAdmin(db, r.actor);
         await member(db, r.actor, id);
         const other = await db.query(
           "SELECT 1 FROM memberships WHERE user_id=$1 AND entity_id<>$2",

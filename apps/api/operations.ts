@@ -17,6 +17,7 @@ import {
   update,
   audit,
   permission,
+  companyAdmin,
   accountAccess,
   elevated,
 } from "./context.js";
@@ -50,8 +51,14 @@ export async function registerOperations(app: FastifyInstance) {
       z.object({
         name: z.string().min(1).max(100),
         email: z.email(),
+        username: z
+          .string()
+          .trim()
+          .regex(/^[a-zA-Z0-9._-]{3,80}$/)
+          .optional(),
         password: z.string().min(12).max(200),
         role: z.enum([
+          "owner",
           "manager",
           "sales",
           "market",
@@ -64,6 +71,7 @@ export async function registerOperations(app: FastifyInstance) {
     );
     return ok(
       await tx(async (db) => {
+        await companyAdmin(db, r.actor);
         ensure(
           !(
             await db.query("SELECT 1 FROM users WHERE email=$1", [
@@ -75,8 +83,13 @@ export async function registerOperations(app: FastifyInstance) {
         );
         const u = (
           await db.query(
-            "INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id,name,email",
-            [p.name, p.email.toLowerCase(), passwordHash(p.password)],
+            "INSERT INTO users(name,email,password_hash,login_username) VALUES($1,$2,$3,$4) RETURNING id,name,email",
+            [
+              p.name,
+              p.email.toLowerCase(),
+              passwordHash(p.password),
+              p.username?.toLowerCase() || null,
+            ],
           )
         ).rows[0];
         await db.query("INSERT INTO memberships VALUES($1,$2,$3)", [

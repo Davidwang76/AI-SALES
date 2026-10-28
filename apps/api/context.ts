@@ -132,3 +132,19 @@ export function body<T>(
   return schema.parse(r.body);
 }
 export const params = (r: FastifyRequest) => r.params as Record<string, string>;
+
+// Serialize company administration and recheck live privileges after acquiring the lock.
+export async function companyAdmin(db: DB, a: Actor) {
+  await db.query("SELECT id FROM entities WHERE id=$1 FOR UPDATE", [a.entity]);
+  ensure(
+    (
+      await db.query(
+        "SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.entity_id=$2 AND m.role='owner' AND u.active",
+        [a.id, a.entity],
+      )
+    ).rowCount,
+    "FORBIDDEN",
+    "当前账号无公司系统管理员权限",
+    403,
+  );
+}

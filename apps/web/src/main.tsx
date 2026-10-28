@@ -27,9 +27,18 @@ import {
 import { api, setEntity, entity, download } from "./api";
 import "./style.css";
 import { CollectionForm } from "./CollectionForm";
+import { CompanyPortal, type Company } from "./CompanyPortal";
+import { CompanyWorkspace } from "./CompanyWorkspace";
 import { Navigation } from "./Navigation";
 type Row = Record<string, any>;
 const labels: Record<string, string> = {
+  owner: "公司系统管理员",
+  manager: "管理者",
+  sales: "执行者",
+  market: "执行者 · 市场",
+  procurement: "执行者 · 采购",
+  finance: "执行者 · 财务",
+  viewer: "只读成员",
   exhibition: "行业展会",
   online: "线上活动",
   draft: "草稿",
@@ -233,7 +242,7 @@ const csv = (x: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 const iso = (x: string) => new Date(x).toISOString();
-function App() {
+function App({ company }: { company?: Company }) {
   const [offset, O] = useState(0);
   const [session, S] = useState<Row | null>(null),
     [ready, R] = useState(false),
@@ -275,9 +284,14 @@ function App() {
   ] as const;
   useEffect(() => {
     api("session")
-      .then((s) => {
-        setEntity(s.entities[0]?.id || "");
-        S(s);
+      .then(async (s) => {
+        const selected = company
+          ? s.entities.find((e: Row) => e.id === company.entity_id)
+          : s.entities[0];
+        if (!selected) return;
+        setEntity(selected.id);
+        const workspace = await api("company-workspace");
+        S({ ...s, workspace });
       })
       .catch(() => {})
       .finally(() => R(true));
@@ -650,21 +664,28 @@ function App() {
         [
           { key: "name", label: "姓名" },
           { key: "email", label: "公司邮箱", type: "email" },
+          {
+            key: "username",
+            label: "用户名（可选，字母数字或._-，至少3位）",
+            required: false,
+          },
           { key: "password", label: "初始密码（至少12位）", type: "password" },
           {
             key: "role",
             label: "角色",
             options: [
+              "owner",
               "manager",
               "sales",
               "market",
               "procurement",
               "finance",
               "viewer",
-            ].map((value) => ({ value, label: value })),
+            ].map((value) => ({ value, label: L(value) })),
           },
         ],
-        (v) => api("members", "POST", v),
+        (v) =>
+          api("members", "POST", { ...v, username: v.username || undefined }),
       );
     else if (section === "automation-rules")
       form(
@@ -867,9 +888,11 @@ function App() {
   if (!session)
     return (
       <Login
-        onLogin={(s) => {
-          setEntity(s.entities[0]?.id || "");
-          S(s);
+        company={company}
+        onLogin={async (s) => {
+          setEntity(company?.entity_id || s.entities[0]?.id || "");
+          const workspace = await api("company-workspace");
+          S({ ...s, workspace });
         }}
       />
     );
@@ -898,10 +921,23 @@ function App() {
         >
           <span>SRR</span>
           <div>
-            汽配外贸运营<small>SALES OPERATING SYSTEM</small>
+            {company?.display_name ||
+              (company
+                ? `公司入口 ${String(company.slot).padStart(2, "0")}`
+                : "公司工作空间")}
+            <small>COMPANY WORKSPACE</small>
           </div>
         </a>
-        <Navigation items={menu} section={section} onGo={go} />
+        <Navigation
+          items={menu.filter(
+            ([key]) =>
+              ["home", "members", "integrations", "audit-events"].includes(
+                key,
+              ) || session.workspace?.modules.includes(key),
+          )}
+          section={section}
+          onGo={go}
+        />
         <div className="sidebar-bottom">
           <span className="live-dot" /> 数据库持久保存
           <br />
@@ -921,6 +957,12 @@ function App() {
             运营空间 <ChevronRight size={14} /> {title}
           </div>
           <div className="user">
+            <a className="company-switch" href="/">
+              选择公司
+            </a>
+            <span className="role-label">
+              {L(session.entities.find((v: Row) => v.id === entity)?.role)}
+            </span>
             <select
               aria-label="经营主体"
               value={entity}
@@ -930,11 +972,13 @@ function App() {
                 S({ ...session });
               }}
             >
-              {session.entities.map((v: Row) => (
-                <option value={v.id} key={v.id}>
-                  {v.name}
-                </option>
-              ))}
+              {session.entities
+                .filter((v: Row) => !company || v.id === company.entity_id)
+                .map((v: Row) => (
+                  <option value={v.id} key={v.id}>
+                    {v.name}
+                  </option>
+                ))}
             </select>
             <button
               className="avatar"
@@ -1027,16 +1071,19 @@ function App() {
                 "integrations",
                 "audit-events",
                 "candidates",
-              ].includes(section) && (
-                <button onClick={add}>
-                  <Plus size={17} />
-                  {section === "leads"
-                    ? "现场采集"
-                    : section === "sources"
-                      ? "收集资料"
-                      : "新建"}
-                </button>
-              )}
+              ].includes(section) &&
+                (section !== "members" ||
+                  session.entities.find((v: Row) => v.id === entity)?.role ===
+                    "owner") && (
+                  <button onClick={add}>
+                    <Plus size={17} />
+                    {section === "leads"
+                      ? "现场采集"
+                      : section === "sources"
+                        ? "收集资料"
+                        : "新建"}
+                  </button>
+                )}
             </div>
           </div>
           {error && (
@@ -1053,176 +1100,202 @@ function App() {
               {notice}
             </div>
           )}
-          {section === "home" && dash && (
-            <>
-              <section className="panel quick-start">
-                <h2>你现在要做什么？</h2>
-                <div className="quick-start-grid">
-                  <button className="secondary" onClick={collect}>
-                    <Plus size={21} />
-                    <span>
-                      <b>先收集资料</b>
-                      <small>拍照、粘贴截图或原文，不必先填档案</small>
-                    </span>
-                    <ChevronRight size={17} />
-                  </button>
-                  <button className="secondary" onClick={() => go("tasks")}>
-                    <ListChecks size={21} />
-                    <span>
-                      <b>处理跟进待办</b>
-                      <small>查看已分配的任务，推进下一步</small>
-                    </span>
-                    <ChevronRight size={17} />
-                  </button>
-                  <button className="secondary" onClick={() => go("accounts")}>
-                    <Users size={21} />
-                    <span>
-                      <b>查找已有客户</b>
-                      <small>打开客户档案，继续沟通或整理询盘</small>
-                    </span>
-                    <ChevronRight size={17} />
-                  </button>
-                </div>
-              </section>
-              <div className="stats">
-                {[
-                  ["leads", "待处理入口", "原始线索"],
-                  ["accounts", "统一客户资产", "去重企业"],
-                  ["tasks", "需要推进", "未完成任务"],
-                  ["rfqs", "采购需求", "标准询盘"],
-                ].map(([k, t, l], i) => (
-                  <button className="stat" key={k} onClick={() => go(k)}>
-                    <div>
-                      {t}
-                      <ArrowUpRight size={17} />
-                    </div>
-                    <strong>{dash.counts[k]}</strong>
-                    <small>
-                      {l}
-                      <span>查看明细 →</span>
-                    </small>
-                  </button>
-                ))}
-              </div>
-              <div className="dashboard-grid">
-                <section className="panel">
-                  <div className="panel-title">
-                    <h2>今天，从这里推进</h2>
-                    <span>负责人六问</span>
-                  </div>
-                  <div className="decision-list">
-                    {[
-                      [
-                        "01",
-                        "谁值得开发？",
-                        "核对新线索的进口能力与分销依据",
-                        "leads",
-                      ],
-                      [
-                        "02",
-                        "重点客户下一步是什么？",
-                        "查看责任人与截止时间",
-                        "tasks",
-                      ],
-                      [
-                        "03",
-                        "询盘还缺什么？",
-                        "逐行澄清 OE、数量、单位与目的地",
-                        "rfqs",
-                      ],
-                      [
-                        "04",
-                        "哪些交易需要处理？",
-                        "查看已确认订单与回款核实",
-                        "orders",
-                      ],
-                      [
-                        "05",
-                        "老客户需要补货吗？",
-                        "待接入客户库存与独立复购数据",
-                        "accounts",
-                      ],
-                      [
-                        "06",
-                        "投入带来了什么？",
-                        `已登记人工 ${dash.work_minutes} 分钟；毛利与收入未启用正式统计`,
-                        "tasks",
-                      ],
-                    ].map(([n, t, d, k]) => (
-                      <button key={n} onClick={() => go(k)}>
-                        <span className="step">{n}</span>
-                        <div>
-                          <b>{t}</b>
-                          <small>{d}</small>
-                        </div>
-                        <ChevronRight size={17} />
-                      </button>
-                    ))}
-                  </div>
-                </section>
-                <section className="panel">
-                  <div className="panel-title">
-                    <h2>获客双主链</h2>
-                  </div>
-                  <div className="chain">
-                    <CalendarDays />
-                    <h3>行业展会</h3>
-                    <p>现场采集 → 核实归属 → 会后跟进</p>
-                    <button className="secondary" onClick={() => capture()}>
-                      采集一条线索 <ArrowUpRight size={15} />
+          {section === "home" && (
+            <CompanyWorkspace
+              config={session.workspace || { purpose: "", modules: [] }}
+              admin={
+                session.entities.find((v: Row) => v.id === entity)?.role ===
+                "owner"
+              }
+              options={menu
+                .filter(
+                  ([key]) =>
+                    ![
+                      "home",
+                      "members",
+                      "integrations",
+                      "audit-events",
+                    ].includes(key),
+                )
+                .map(([key, label]) => ({ key, label }))}
+              onSaved={(workspace) => S({ ...session, workspace })}
+            />
+          )}
+          {section === "home" &&
+            dash &&
+            Boolean(session.workspace?.modules.length) && (
+              <>
+                <section className="panel quick-start">
+                  <h2>你现在要做什么？</h2>
+                  <div className="quick-start-grid">
+                    <button className="secondary" onClick={collect}>
+                      <Plus size={21} />
+                      <span>
+                        <b>先收集资料</b>
+                        <small>拍照、粘贴截图或原文，不必先填档案</small>
+                      </span>
+                      <ChevronRight size={17} />
                     </button>
-                  </div>
-                  <div className="chain online">
-                    <Globe2 />
-                    <h3>线上宣传</h3>
-                    <p>内容审批 → 留资表单 → 需求澄清</p>
+                    <button className="secondary" onClick={() => go("tasks")}>
+                      <ListChecks size={21} />
+                      <span>
+                        <b>处理跟进待办</b>
+                        <small>查看已分配的任务，推进下一步</small>
+                      </span>
+                      <ChevronRight size={17} />
+                    </button>
                     <button
                       className="secondary"
-                      onClick={() => go("activities")}
+                      onClick={() => go("accounts")}
                     >
-                      管理活动与留资 <ArrowUpRight size={15} />
+                      <Users size={21} />
+                      <span>
+                        <b>查找已有客户</b>
+                        <small>打开客户档案，继续沟通或整理询盘</small>
+                      </span>
+                      <ChevronRight size={17} />
                     </button>
                   </div>
                 </section>
-              </div>
-              <section className="panel">
-                <div className="panel-title">
-                  <h2>活动来源表现</h2>
-                  <span>线索与企业分别计数</span>
+                <div className="stats">
+                  {[
+                    ["leads", "待处理入口", "原始线索"],
+                    ["accounts", "统一客户资产", "去重企业"],
+                    ["tasks", "需要推进", "未完成任务"],
+                    ["rfqs", "采购需求", "标准询盘"],
+                  ].map(([k, t, l], i) => (
+                    <button className="stat" key={k} onClick={() => go(k)}>
+                      <div>
+                        {t}
+                        <ArrowUpRight size={17} />
+                      </div>
+                      <strong>{dash.counts[k]}</strong>
+                      <small>
+                        {l}
+                        <span>查看明细 →</span>
+                      </small>
+                    </button>
+                  ))}
                 </div>
-                {dash.channels.length ? (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>活动</th>
-                        <th>渠道</th>
-                        <th>原始线索</th>
-                        <th>关联企业</th>
-                        <th>曝光 / 点击</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dash.channels.map((v: Row) => (
-                        <tr key={v.id}>
-                          <td>{v.name}</td>
-                          <td>{L(v.type)}</td>
-                          <td>{v.leads}</td>
-                          <td>{v.accounts}</td>
-                          <td className="muted">未接入</td>
-                        </tr>
+                <div className="dashboard-grid">
+                  <section className="panel">
+                    <div className="panel-title">
+                      <h2>今天，从这里推进</h2>
+                      <span>负责人六问</span>
+                    </div>
+                    <div className="decision-list">
+                      {[
+                        [
+                          "01",
+                          "谁值得开发？",
+                          "核对新线索的进口能力与分销依据",
+                          "leads",
+                        ],
+                        [
+                          "02",
+                          "重点客户下一步是什么？",
+                          "查看责任人与截止时间",
+                          "tasks",
+                        ],
+                        [
+                          "03",
+                          "询盘还缺什么？",
+                          "逐行澄清 OE、数量、单位与目的地",
+                          "rfqs",
+                        ],
+                        [
+                          "04",
+                          "哪些交易需要处理？",
+                          "查看已确认订单与回款核实",
+                          "orders",
+                        ],
+                        [
+                          "05",
+                          "老客户需要补货吗？",
+                          "待接入客户库存与独立复购数据",
+                          "accounts",
+                        ],
+                        [
+                          "06",
+                          "投入带来了什么？",
+                          `已登记人工 ${dash.work_minutes} 分钟；毛利与收入未启用正式统计`,
+                          "tasks",
+                        ],
+                      ].map(([n, t, d, k]) => (
+                        <button key={n} onClick={() => go(k)}>
+                          <span className="step">{n}</span>
+                          <div>
+                            <b>{t}</b>
+                            <small>{d}</small>
+                          </div>
+                          <ChevronRight size={17} />
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <Empty
-                    text="先新建一次展会或线上活动，再采集第一条线索。"
-                    action={() => go("activities")}
-                    label="创建活动"
-                  />
-                )}
-              </section>
-            </>
-          )}
+                    </div>
+                  </section>
+                  <section className="panel">
+                    <div className="panel-title">
+                      <h2>获客双主链</h2>
+                    </div>
+                    <div className="chain">
+                      <CalendarDays />
+                      <h3>行业展会</h3>
+                      <p>现场采集 → 核实归属 → 会后跟进</p>
+                      <button className="secondary" onClick={() => capture()}>
+                        采集一条线索 <ArrowUpRight size={15} />
+                      </button>
+                    </div>
+                    <div className="chain online">
+                      <Globe2 />
+                      <h3>线上宣传</h3>
+                      <p>内容审批 → 留资表单 → 需求澄清</p>
+                      <button
+                        className="secondary"
+                        onClick={() => go("activities")}
+                      >
+                        管理活动与留资 <ArrowUpRight size={15} />
+                      </button>
+                    </div>
+                  </section>
+                </div>
+                <section className="panel">
+                  <div className="panel-title">
+                    <h2>活动来源表现</h2>
+                    <span>线索与企业分别计数</span>
+                  </div>
+                  {dash.channels.length ? (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>活动</th>
+                          <th>渠道</th>
+                          <th>原始线索</th>
+                          <th>关联企业</th>
+                          <th>曝光 / 点击</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dash.channels.map((v: Row) => (
+                          <tr key={v.id}>
+                            <td>{v.name}</td>
+                            <td>{L(v.type)}</td>
+                            <td>{v.leads}</td>
+                            <td>{v.accounts}</td>
+                            <td className="muted">未接入</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <Empty
+                      text="先新建一次展会或线上活动，再采集第一条线索。"
+                      action={() => go("activities")}
+                      label="创建活动"
+                    />
+                  )}
+                </section>
+              </>
+            )}
           {section !== "home" && !detail && (
             <>
               <div className="toolbar">
@@ -3390,9 +3463,43 @@ function App() {
                 <>
                   <h2>{detail.name}</h2>
                   <p>
-                    {detail.email} · 角色 {detail.role} ·{" "}
+                    {detail.email} · {L(detail.role)} ·{" "}
                     {detail.active ? "有效" : "已停用"}
                   </p>
+                  {session.entities.find((v: Row) => v.id === entity)?.role ===
+                    "owner" &&
+                    detail.id !== session.id && (
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          form(
+                            "调整公司成员角色",
+                            [
+                              {
+                                key: "role",
+                                label: "角色",
+                                options: [
+                                  "owner",
+                                  "manager",
+                                  "sales",
+                                  "market",
+                                  "procurement",
+                                  "finance",
+                                  "viewer",
+                                ].map((value) => ({ value, label: L(value) })),
+                                value: detail.role,
+                              },
+                            ],
+                            async (v) => {
+                              await api(`members/${detail.id}/role`, "POST", v);
+                              V({ ...detail, role: v.role });
+                            },
+                          )
+                        }
+                      >
+                        调整角色
+                      </button>
+                    )}
                   {detail.active && (
                     <button
                       className="secondary"
@@ -3813,7 +3920,13 @@ function Empty({
     </div>
   );
 }
-function Login({ onLogin }: { onLogin: (s: Row) => void }) {
+function Login({
+  onLogin,
+  company,
+}: {
+  onLogin: (s: Row) => void | Promise<void>;
+  company?: Company;
+}) {
   const [error, E] = useState(""),
     [busy, B] = useState(false);
   return (
@@ -3821,17 +3934,22 @@ function Login({ onLogin }: { onLogin: (s: Row) => void }) {
       <div className="login-story">
         <span className="login-logo">SRR</span>
         <h1>
-          让每一次接触，
+          各自经营，
           <br />
-          走向长期合作。
+          共同成长。
         </h1>
-        <p>从展会与线上获客，到有证据的客户经营。</p>
+        <p>属于本公司的账号、业务与工作空间。</p>
         <div>客户归公司 · 判断有依据 · 跟进有责任</div>
       </div>
       <section>
         <div className="eyebrow">SALES OPERATING SYSTEM</div>
         <h2>登录经营工作台</h2>
-        <p>使用已授权的公司账号</p>
+        <p>
+          {company?.display_name ||
+            (company
+              ? `公司入口 ${String(company.slot).padStart(2, "0")}`
+              : "使用已授权的公司账号")}
+        </p>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -3839,7 +3957,16 @@ function Login({ onLogin }: { onLogin: (s: Row) => void }) {
             E("");
             const d = Object.fromEntries(new FormData(e.currentTarget));
             try {
-              onLogin(await api("session", "POST", d));
+              if (company && !company.entity_id)
+                throw new Error("该公司入口尚未开通，请联系管理员。");
+              await onLogin(
+                await api("session", "POST", {
+                  ...d,
+                  ...(company?.entity_id
+                    ? { entity_id: company.entity_id }
+                    : {}),
+                }),
+              );
             } catch (e: any) {
               E(e.message);
             } finally {
@@ -3848,8 +3975,14 @@ function Login({ onLogin }: { onLogin: (s: Row) => void }) {
           }}
         >
           <label>
-            邮箱
-            <input name="email" type="email" autoComplete="username" required />
+            用户名
+            <input
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              placeholder="用户名或公司邮箱"
+            />
           </label>
           <label>
             密码
@@ -3869,7 +4002,7 @@ function Login({ onLogin }: { onLogin: (s: Row) => void }) {
             {busy ? "登录中…" : "登录工作台"} <ArrowUpRight size={17} />
           </button>
         </form>
-        <small>首次使用请按 README 初始化负责人账号。</small>
+        <small>使用本公司的管理员、管理者或执行者账号登录。</small>
       </section>
     </div>
   );
@@ -4132,4 +4265,14 @@ function PublicForm() {
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  location.pathname.startsWith("/form/") ? (
+    <App />
+  ) : (
+    <CompanyPortal
+      renderCompany={(company) => (
+        <App key={company.entity_id || company.slot} company={company} />
+      )}
+    />
+  ),
+);

@@ -1136,3 +1136,186 @@ nav .nav-group-toggle {
 .collection-modal footer {
   flex-wrap: wrap;
 }
+.portal-page {
+  min-height: 100vh;
+  padding: 0 max(24px, calc((100vw - 1120px) / 2));
+  background: #f4f3ef;
+  color: #273d35;
+}
+.portal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px 0;
+  border-bottom: 1px solid #dadfd7;
+  color: #7a877e;
+  font-size: 12px;
+}
+.portal-wordmark {
+  font-size: 19px;
+  font-weight: 650;
+  color: #29493c;
+  letter-spacing: 2px;
+}
+.portal-intro {
+  padding: 46px 0 25px;
+}
+.portal-intro h1 {
+  font-size: 34px;
+  margin: 10px 0;
+}
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.company-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  padding: 22px 24px;
+  border-radius: 14px;
+  background: #fff;
+  color: #305444;
+  border: 1px solid #e1e4dc;
+  gap: 15px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.company-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 20px #243e3210;
+  filter: none;
+  border-color: #a1baa9;
+}
+.company-card-top,
+.company-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.company-card-top > span {
+  color: #91a294;
+  font-size: 18px;
+  font-weight: 400;
+}
+.company-name {
+  font-size: 20px;
+  min-height: 28px;
+  overflow-wrap: anywhere;
+}
+.company-card-bottom {
+  font-size: 12px;
+  color: #6f8779;
+}
+.practice-card {
+  margin-top: 24px;
+  width: 100%;
+  display: flex;
+  padding: 24px;
+  border-radius: 14px;
+  background: #e9e5db;
+  color: #655843;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 18px;
+}
+.practice-card > span:nth-child(2) {
+  flex: 1;
+}
+.practice-card b,
+.practice-card small {
+  display: block;
+}
+.practice-card b {
+  font-size: 18px;
+  font-weight: 550;
+}
+.practice-card small {
+  margin-top: 8px;
+  color: #867963;
+}
+.portal-footer {
+  padding: 24px 0;
+  font-size: 12px;
+  text-align: center;
+  color: #8a9389;
+}
+.portal-back {
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffffed;
+  padding: 9px 13px;
+  border-radius: 7px;
+  color: #2e5544;
+}
+.practice-welcome {
+  padding: 100px 10px;
+  text-align: center;
+}
+.role-label {
+  font-size: 12px;
+  color: #5f786a;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .portal-page {
+    padding: 0 18px;
+  }
+  .portal-header {
+    padding: 22px 0;
+  }
+  .portal-header > span:nth-child(2) {
+    display: none;
+  }
+  .portal-intro {
+    padding-top: 28px;
+  }
+  .company-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .company-card {
+    padding: 17px;
+    gap: 9px;
+  }
+  .company-name {
+    font-size: 17px;
+  }
+  .portal-intro h1 {
+    font-size: 28px;
+  }
+  .practice-card {
+    padding: 20px 16px;
+  }
+  .role-label {
+    display: none;
+  }
+}
+/* The login return link must not cover the mobile workspace menu. */
+.portal-back:has(+ .shell) {
+  display: none;
+}
+.company-switch {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.company-welcome > svg {
+  color: #769a84;
+  margin-bottom: 14px;
+}
+.company-welcome h2 {
+  margin-bottom: 10px;
+}
+.module-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}

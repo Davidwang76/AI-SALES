@@ -3,7 +3,8 @@ const email = process.env.BOOTSTRAP_EMAIL!,
   password = process.env.BOOTSTRAP_PASSWORD!;
 async function login(page: Page) {
   await page.goto("/");
-  await page.getByLabel("邮箱", { exact: true }).fill(email);
+  await page.getByRole("button", { name: "公司入口01", exact: true }).click();
+  await page.getByLabel("用户名", { exact: true }).fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
   const responsePromise = page.waitForResponse(
     (r) =>
@@ -352,6 +353,43 @@ test("少填资料采集：折叠菜单、功能搜索、粘贴截图和原文�
   ).toBe(true);
   await page.screenshot({
     path: "test-results/collection-mobile.png",
+    fullPage: true,
+  });
+});
+
+test("首界面：九个留空公司入口、个人家庭入口、公司登录与手机布局", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "选择你的公司" }),
+  ).toBeVisible();
+  await expect(page.locator(".company-card")).toHaveCount(9);
+  await expect(page.locator(".company-name").first()).toHaveText("");
+  await page.screenshot({
+    path: "test-results/company-portal-desktop.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "公司入口02", exact: true }).click();
+  await expect(page.getByText("公司入口 02", { exact: true })).toBeVisible();
+  await page.getByLabel("用户名", { exact: true }).fill(email);
+  await page.getByLabel("密码", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "登录工作台", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("账号不属于此公司");
+  await page.getByRole("link", { name: "返回公司选择" }).click();
+  await page.getByRole("button", { name: /个人修炼＋家庭修炼/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "个人修炼＋家庭修炼" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "返回首页" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/company-portal-mobile.png",
     fullPage: true,
   });
 });
