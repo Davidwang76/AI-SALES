@@ -49,7 +49,19 @@ test("公司入口、用户名登录、角色变更和公司隔离", async () =>
       await app.inject({ method: "GET", url: "/api/v1/public/company-portals" })
     ).json().data;
     assert.equal(entries.length, 9);
-    assert.ok(entries.every((v: any) => v.display_name === ""));
+    assert.deepEqual(
+      entries.slice(0, 3).map((v: any) => [v.display_name, v.subtitle]),
+      [
+        ["SRR", "AI外贸"],
+        ["LTMC", "目标管理"],
+        ["LJYL", "AI培训"],
+      ],
+    );
+    assert.ok(
+      entries
+        .slice(3)
+        .every((v: any) => v.display_name === "" && v.subtitle === ""),
+    );
     const wrong = await login(`portal-a-${key}@example.com`, b);
     assert.equal(wrong.r.statusCode, 401);
     assert.equal(wrong.cookie, "");

@@ -1319,3 +1319,15 @@ nav .nav-group-toggle {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
 }
+
+.company-subtitle {
+  font-size: 14px;
+  color: #72887b;
+  line-height: 1.5;
+  margin-top: -10px;
+  min-height: 21px;
+}
+.login-company-subtitle {
+  color: #506f5d;
+  margin-top: -10px;
+}

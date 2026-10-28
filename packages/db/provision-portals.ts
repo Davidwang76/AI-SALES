@@ -88,19 +88,27 @@ const credentials = await tx(async (db) => {
           owner.entity_id,
         ],
       );
+      if (portal.display_name)
+        await db.query("UPDATE entities SET name=$1 WHERE id=$2", [
+          portal.display_name,
+          owner.entity_id,
+        ]);
       result.push(`01 用户名：${owner.email}；密码沿用原密码。`);
       continue;
     }
     const org = (
       await db.query(
         "INSERT INTO organizations(name) VALUES($1) RETURNING id",
-        [`公司入口${String(slot).padStart(2, "0")}`],
+        [portal.display_name || `公司入口${String(slot).padStart(2, "0")}`],
       )
     ).rows[0];
     const entity = (
       await db.query(
         "INSERT INTO entities(organization_id,name) VALUES($1,$2) RETURNING id",
-        [org.id, `公司入口${String(slot).padStart(2, "0")}`],
+        [
+          org.id,
+          portal.display_name || `公司入口${String(slot).padStart(2, "0")}`,
+        ],
       )
     ).rows[0];
     const username = `company${String(slot).padStart(2, "0")}.admin`;

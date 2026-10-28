@@ -134,7 +134,7 @@ export async function buildApp() {
     ok(
       (
         await pool.query(
-          "SELECT slot,display_name,entity_id FROM company_portals ORDER BY slot",
+          "SELECT slot,display_name,subtitle,entity_id FROM company_portals ORDER BY slot",
         )
       ).rows,
     ),
@@ -202,13 +202,19 @@ export async function buildApp() {
   });
   app.post("/api/v1/company-profile", async (r) => {
     permission(r.actor, ["owner"]);
-    const p = body(z.object({ name: z.string().trim().min(1).max(100) }), r);
+    const p = body(
+      z.object({
+        name: z.string().trim().min(1).max(100),
+        subtitle: z.string().trim().max(100).optional(),
+      }),
+      r,
+    );
     return ok(
       await tx(async (db) => {
         await companyAdmin(db, r.actor);
         await db.query(
-          "UPDATE company_portals SET display_name=$1 WHERE entity_id=$2",
-          [p.name, r.actor.entity],
+          "UPDATE company_portals SET display_name=$1,subtitle=COALESCE($3,subtitle) WHERE entity_id=$2",
+          [p.name, r.actor.entity, p.subtitle ?? null],
         );
         await db.query("UPDATE entities SET name=$1 WHERE id=$2", [
           p.name,

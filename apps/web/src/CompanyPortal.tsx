@@ -4,6 +4,7 @@ import { api } from "./api";
 export type Company = {
   slot: number;
   display_name: string;
+  subtitle: string;
   entity_id: string | null;
 };
 export function CompanyPortal({
@@ -105,6 +106,9 @@ export function CompanyPortal({
               </span>
               <span className="company-name">
                 {v.display_name || <span aria-hidden="true">&nbsp;</span>}
+              </span>
+              <span className="company-subtitle">
+                {v.subtitle || <span aria-hidden="true">&nbsp;</span>}
               </span>
               <span className="company-card-bottom">
                 进入公司

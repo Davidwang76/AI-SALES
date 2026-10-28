@@ -3,7 +3,7 @@ const email = process.env.BOOTSTRAP_EMAIL!,
   password = process.env.BOOTSTRAP_PASSWORD!;
 async function login(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "公司入口01", exact: true }).click();
+  await page.getByRole("button", { name: /^公司入口01/ }).click();
   await page.getByLabel("用户名", { exact: true }).fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
   const responsePromise = page.waitForResponse(
@@ -357,7 +357,7 @@ test("少填资料采集：折叠菜单、功能搜索、粘贴截图和原文�
   });
 });
 
-test("首界面：九个留空公司入口、个人家庭入口、公司登录与手机布局", async ({
+test("首界面：公司名称与业务副标题、个人家庭入口、公司登录与手机布局", async ({
   page,
 }) => {
   await page.goto("/");
@@ -365,13 +365,19 @@ test("首界面：九个留空公司入口、个人家庭入口、公司登录�
     page.getByRole("heading", { name: "选择你的公司" }),
   ).toBeVisible();
   await expect(page.locator(".company-card")).toHaveCount(9);
-  await expect(page.locator(".company-name").first()).toHaveText("");
+  await expect(page.locator(".company-name").first()).toHaveText("SRR");
+  await expect(page.locator(".company-subtitle").first()).toHaveText("AI外贸");
+  await expect(page.locator(".company-name").nth(1)).toHaveText("LTMC");
+  await expect(page.locator(".company-subtitle").nth(1)).toHaveText("目标管理");
+  await expect(page.locator(".company-name").nth(2)).toHaveText("LJYL");
+  await expect(page.locator(".company-subtitle").nth(2)).toHaveText("AI培训");
+  await expect(page.locator(".company-name").nth(3)).toHaveText("");
   await page.screenshot({
     path: "test-results/company-portal-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "公司入口02", exact: true }).click();
-  await expect(page.getByText("公司入口 02", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^公司入口02/ }).click();
+  await expect(page.getByText("LTMC", { exact: true })).toBeVisible();
   await page.getByLabel("用户名", { exact: true }).fill(email);
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();

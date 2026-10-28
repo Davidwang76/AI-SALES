@@ -925,7 +925,7 @@ function App({ company }: { company?: Company }) {
               (company
                 ? `公司入口 ${String(company.slot).padStart(2, "0")}`
                 : "公司工作空间")}
-            <small>COMPANY WORKSPACE</small>
+            <small>{company?.subtitle || "COMPANY WORKSPACE"}</small>
           </div>
         </a>
         <Navigation
@@ -3950,6 +3950,9 @@ function Login({
               ? `公司入口 ${String(company.slot).padStart(2, "0")}`
               : "使用已授权的公司账号")}
         </p>
+        {company?.subtitle && (
+          <p className="login-company-subtitle">{company.subtitle}</p>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
