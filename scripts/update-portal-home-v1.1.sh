@@ -74,6 +74,14 @@ a1a43769c32eadbb03651e269583a3d82a0361a24d2b5c411b3638b43a5d15e1  apps/web/src/B
 NEW_SOURCES
 }
 
+dist_manifest() {
+  cat <<'DIST_FILES'
+2190bf6ffa2c05092d16abe94a25c9425d2ce27a2446ffb8d5e071675848b262  dist/web/assets/index-BXmIGvqc.js
+fc19d6853547e143b6ebf72f97cda58c161979cd3fa85329cc1ed1e81ae43a47  dist/web/assets/index-dD77JggR.css
+c8992333ec4bc450a0da1287bde9b83cf9f3a8a41a17a7d0f9c723339a6aabbb  dist/web/index.html
+DIST_FILES
+}
+
 compose() {
   "${docker_cmd[@]}" compose --project-directory "$app_dir" \
     -f "$app_dir/compose.yaml" -f "$app_dir/compose.tencent.yaml" "$@"
@@ -211,7 +219,7 @@ failed() {
   exit "$status"
 }
 
-for command in curl sha256sum python3 docker flock mktemp cp; do
+for command in sha256sum python3 docker flock mktemp cp; do
   command -v "$command" >/dev/null || { echo "缺少命令：$command" >&2; exit 1; }
 done
 
@@ -222,6 +230,18 @@ if [[ ${1:-} == rollback ]]; then
   lock_app
   rollback
   exit
+fi
+
+offline=0
+if [[ ${1:-} == --offline ]]; then
+  offline=1
+  shift
+  bundle_dir=$(cd -- "$(dirname "$0")" && pwd -P)
+  [[ -d "$bundle_dir/payload/apps/web/src" && -d "$bundle_dir/dist/web" ]] || {
+    echo '离线包缺少源码或已构建前端，请重新上传完整离线包。' >&2; exit 1;
+  }
+else
+  command -v curl >/dev/null || { echo '在线方式需要 curl；大陆服务器建议使用完整离线包。' >&2; exit 1; }
 fi
 
 app_dir=$(cd -- "${1:-/home/ubuntu/ai-sales-9f45fcd}" && pwd -P)
@@ -236,6 +256,7 @@ state=$(mktemp -d "$app_dir/.local/portal-v11.XXXXXXXX")
 printf '%s\n' "$app_dir" > "$state/app-dir.txt"
 baseline_manifest > "$state/baseline.sha256"
 new_manifest > "$state/new.sha256"
+dist_manifest > "$state/dist.sha256"
 trap 'failed "$?"' ERR
 trap 'failed 130' INT
 trap 'failed 143' TERM
@@ -264,7 +285,13 @@ printf 'services:\n  web:\n    image: %s\n    pull_policy: never\n' "$new_image"
 cp "$0" "$state/update-helper.sh"
 printf '#!/usr/bin/env bash\nexec bash %q rollback %q\n' "$state/update-helper.sh" "$state" > "$state/rollback.sh"
 
-echo '2/5 备份源码，下载固定提交的四个前端文件并校验…'
+if (( offline )); then
+  echo '2/5 备份源码，从离线包复制四个前端文件及构建产物并校验…'
+  (cd "$bundle_dir/payload" && sha256sum --quiet -c "$state/new.sha256")
+  (cd "$bundle_dir" && sha256sum --quiet -c "$state/dist.sha256")
+else
+  echo '2/5 备份源码，下载固定提交的四个前端文件并校验…'
+fi
 stage="$state/build"
 mkdir -p "$stage" "$state/source-before"
 while read -r hash file; do
@@ -277,20 +304,34 @@ for file in "${files[@]}"; do
     mkdir -p "$state/source-before/$(dirname "$file")"
     cp -p "$app_dir/$file" "$state/source-before/$file"
   fi
-  curl --fail --silent --show-error --location --retry 2 --connect-timeout 15 --max-time 120 \
-    "https://raw.githubusercontent.com/Davidwang76/AI-SALES/$source_commit/$file" -o "$stage/$file"
+  if (( offline )); then
+    cp "$bundle_dir/payload/$file" "$stage/$file"
+  else
+    curl --fail --silent --show-error --location --retry 2 --connect-timeout 15 --max-time 120 \
+      "https://raw.githubusercontent.com/Davidwang76/AI-SALES/$source_commit/$file" -o "$stage/$file"
+  fi
 done
 (cd "$stage" && sha256sum --quiet -c "$state/new.sha256")
-# Only the 48 known source/config files and four checked frontend files enter the build.
-printf '.env*\n.local\n.git\n' > "$stage/.dockerignore"
-
 echo '3/5 构建并检查候选 web；原 web 继续运行…'
-build_args=()
-if [[ -n ${CODEX_PROXY_CERT:-} ]]; then
-  [[ -r "$CODEX_PROXY_CERT" ]]
-  build_args+=(--secret "id=proxy_ca,src=$CODEX_PROXY_CERT")
+if (( offline )); then
+  cp -R "$bundle_dir/dist" "$stage/dist"
+  (cd "$stage" && sha256sum --quiet -c "$state/dist.sha256")
+  # Derive from the ACTUAL running image. Preserve API, Node, dependencies,
+  # user, command and healthcheck; copy only verified prebuilt static assets.
+  # No syntax directive, RUN, registry pull, npm install, or external build step.
+  printf 'FROM %s\nCOPY --chown=node:node dist/web /app/dist/web\n' "$old_tag" > "$stage/Dockerfile"
+  printf '*\n!Dockerfile\n!dist\n!dist/**\n' > "$stage/.dockerignore"
+  "${docker_cmd[@]}" build --pull=false --network=none -t "$new_image" "$stage"
+else
+  # Only the 48 known source/config files and four checked frontend files enter the build.
+  printf '.env*\n.local\n.git\n' > "$stage/.dockerignore"
+  build_args=()
+  if [[ -n ${CODEX_PROXY_CERT:-} ]]; then
+    [[ -r "$CODEX_PROXY_CERT" ]]
+    build_args+=(--secret "id=proxy_ca,src=$CODEX_PROXY_CERT")
+  fi
+  "${docker_cmd[@]}" build "${build_args[@]}" -t "$new_image" "$stage"
 fi
-"${docker_cmd[@]}" build "${build_args[@]}" -t "$new_image" "$stage"
 candidate="ai-sales-$release_id-candidate"
 compose -f "$state/compose.web.yaml" run -d --no-deps --name "$candidate" \
   -p 127.0.0.1::3000 web > "$state/candidate-id.txt"

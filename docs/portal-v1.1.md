@@ -1,5 +1,7 @@
 # 工作与生活门户 V1.1：首页与商务入口
 
+大陆服务器推荐使用[预构建离线更新包](portal-v1.1-offline.md)，通过上传部署，免 GitHub、npm 和镜像仓库下载。下面保留原在线方案及核验记录供维护参考。
+
 ## 原项目及本次范围
 
 原项目为 `Davidwang76/AI-SALES` 的 `deploy/ai-sales-cloud` 分支，基线提交 `5f4597c6dbd04c0d25362b5d15eeda5cf5fd170e`。仓库部署手册中的目标为腾讯云 `49.233.175.166`，SSH 用户 `ubuntu`，既有更新脚本默认目录 `/home/ubuntu/ai-sales-9f45fcd`。这些是原项目记录，尚未通过本轮 SSH 核实线上当前目录和版本。
