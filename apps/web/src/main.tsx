@@ -31,6 +31,7 @@ import { CompanyPortal, type Company } from "./CompanyPortal";
 import { GoalCollaboration } from "./GoalCollaboration";
 import { CompanyWorkspace } from "./CompanyWorkspace";
 import { Navigation } from "./Navigation";
+import { BusinessQuoteWorkspace } from "./BusinessCenter";
 type Row = Record<string, any>;
 const labels: Record<string, string> = {
   owner: "公司系统管理员",
@@ -244,6 +245,8 @@ const csv = (x: string) =>
     .filter(Boolean);
 const iso = (x: string) => new Date(x).toISOString();
 function App({ company }: { company?: Company }) {
+  const businessQuotes =
+    new URLSearchParams(location.search).get("tool") === "business-quotes";
   const [offset, O] = useState(0);
   const [session, S] = useState<Row | null>(null),
     [ready, R] = useState(false),
@@ -304,7 +307,7 @@ function App({ company }: { company?: Company }) {
       .finally(() => R(true));
   }, []);
   async function refresh() {
-    if (!session) return;
+    if (!session || businessQuotes) return;
     if (section === "goals") {
       E("");
       try {
@@ -915,6 +918,18 @@ function App({ company }: { company?: Company }) {
           setEntity(company?.entity_id || s.entities[0]?.id || "");
           const workspace = await api("company-workspace");
           S({ ...s, workspace });
+        }}
+      />
+    );
+  if (businessQuotes && company)
+    return (
+      <BusinessQuoteWorkspace
+        company={company}
+        userName={session.name}
+        onLogout={async () => {
+          await api("session", "DELETE");
+          setEntity("");
+          S(null);
         }}
       />
     );

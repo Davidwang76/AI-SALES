@@ -9,6 +9,7 @@ import {
 import { api } from "./api";
 import { GoalEntry } from "./GoalEntry";
 import { PracticePortal } from "./PracticePortal";
+import { BusinessEntries, BusinessPortal } from "./BusinessCenter";
 export type Company = {
   slot: number;
   display_name: string;
@@ -55,7 +56,20 @@ export function CompanyPortal({
         onRetry={load}
       />
     );
-  const match = path.split("?")[0].match(/^\/company\/(\d{2})$/);
+  const business = path
+    .split("?")[0]
+    .match(/^\/business\/(services|products|quotes)\/?$/);
+  if (business)
+    return (
+      <BusinessPortal
+        area={business[1]}
+        companies={entries}
+        loading={loading}
+        error={error}
+        onRetry={load}
+      />
+    );
+  const match = path.split("?")[0].match(/^\/company\/(\d{2,})$/);
   const company = match
     ? entries.find((v) => v.slot === Number(match[1]))
     : undefined;
@@ -87,63 +101,78 @@ export function CompanyPortal({
       <section className="portal-intro">
         <span className="eyebrow">从这里开始</span>
         <h1>选择你的公司</h1>
-        <p>进入所属公司，再使用用户名和密码登录。</p>
+        <p>进入所属公司登录，或了解我们的商务服务。</p>
       </section>
-      {loading ? (
-        <p role="status">正在加载公司入口…</p>
-      ) : error ? (
-        <div role="alert">
-          <p>{error}</p>
-          <button onClick={load}>重新加载</button>
-        </div>
-      ) : (
-        <div className="company-grid" aria-label="公司入口">
-          {entries.map((v) => (
+      <div className="portal-layout">
+        <section className="portal-companies" aria-labelledby="company-heading">
+          <div className="portal-section-heading">
+            <span className="eyebrow">公司入口</span>
+            <h2 id="company-heading">公司与服务</h2>
+            <p>原有公司账号与业务入口，继续在这里使用。</p>
+          </div>
+          {loading ? (
+            <p role="status">正在加载公司入口…</p>
+          ) : error ? (
+            <div role="alert">
+              <p>{error}</p>
+              <button onClick={load}>重新加载</button>
+            </div>
+          ) : (
+            <div className="company-grid" aria-label="公司入口">
+              {entries.map((v) => (
+                <button
+                  className="company-card"
+                  key={v.slot}
+                  aria-label={`公司入口${String(v.slot).padStart(2, "0")}${v.display_name ? " · " + v.display_name : ""}`}
+                  onClick={() =>
+                    go(`/company/${String(v.slot).padStart(2, "0")}`)
+                  }
+                >
+                  <span className="company-card-top">
+                    <Building2 size={24} />
+                    <span>{String(v.slot).padStart(2, "0")}</span>
+                  </span>
+                  <span className="company-name">
+                    {v.display_name || <span aria-hidden="true">&nbsp;</span>}
+                  </span>
+                  <span className="company-subtitle">
+                    {v.subtitle || <span aria-hidden="true">&nbsp;</span>}
+                  </span>
+                  <span className="company-card-bottom">
+                    进入公司
+                    <ArrowUpRight size={19} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="practice-card" onClick={() => go("/practice")}>
+            <span className="practice-icon">
+              <Heart size={26} />
+            </span>
+            <span>
+              <b>个人修炼＋家庭修炼</b>
+              <small>留一点时间，给自己和家人</small>
+            </span>
+            <ArrowUpRight size={22} />
+          </button>
+          <section className="homepage-tools" aria-label="常用功能">
+            <h2>常用功能</h2>
             <button
-              className="company-card"
-              key={v.slot}
-              aria-label={`公司入口${String(v.slot).padStart(2, "0")}${v.display_name ? " · " + v.display_name : ""}`}
-              onClick={() => go(`/company/${String(v.slot).padStart(2, "0")}`)}
+              className="homepage-tool"
+              onClick={() => go("/tools/goals")}
             >
-              <span className="company-card-top">
-                <Building2 size={24} />
-                <span>{String(v.slot).padStart(2, "0")}</span>
+              <Target size={29} />
+              <span>
+                <b>季月旬目标管理</b>
+                <small>三方讨论 · AI起草 · 依次确认 · 旬末复盘</small>
               </span>
-              <span className="company-name">
-                {v.display_name || <span aria-hidden="true">&nbsp;</span>}
-              </span>
-              <span className="company-subtitle">
-                {v.subtitle || <span aria-hidden="true">&nbsp;</span>}
-              </span>
-              <span className="company-card-bottom">
-                进入公司
-                <ArrowUpRight size={19} />
-              </span>
+              <ArrowUpRight size={23} />
             </button>
-          ))}
-        </div>
-      )}
-      <button className="practice-card" onClick={() => go("/practice")}>
-        <span className="practice-icon">
-          <Heart size={26} />
-        </span>
-        <span>
-          <b>个人修炼＋家庭修炼</b>
-          <small>留一点时间，给自己和家人</small>
-        </span>
-        <ArrowUpRight size={22} />
-      </button>
-      <section className="homepage-tools" aria-label="常用功能">
-        <h2>常用功能</h2>
-        <button className="homepage-tool" onClick={() => go("/tools/goals")}>
-          <Target size={29} />
-          <span>
-            <b>季月旬目标管理</b>
-            <small>三方讨论 · AI起草 · 依次确认 · 旬末复盘</small>
-          </span>
-          <ArrowUpRight size={23} />
-        </button>
-      </section>
+          </section>
+        </section>
+        <BusinessEntries />
+      </div>
       <footer className="portal-footer">
         请选择自己所属的公司 · 各公司账号与业务权限独立
       </footer>

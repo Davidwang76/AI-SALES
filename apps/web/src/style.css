@@ -1166,7 +1166,7 @@ nav .nav-group-toggle {
 }
 .company-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 .company-card {
@@ -1302,6 +1302,196 @@ nav .nav-group-toggle {
 /* The login return link must not cover the mobile workspace menu. */
 .portal-back:has(+ .shell) {
   display: none;
+}
+.portal-back:has(+ .business-quote-workspace) {
+  position: static;
+  width: fit-content;
+  margin: 12px 24px;
+}
+.portal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.portal-companies,
+.business-center {
+  min-width: 0;
+}
+.business-center {
+  position: static;
+  inset: auto;
+  width: auto;
+  background: transparent;
+  color: inherit;
+  display: block;
+  z-index: auto;
+  transform: none;
+  box-shadow: none;
+}
+.business-page {
+  margin: 0;
+  width: 100%;
+}
+.portal-section-heading {
+  margin-bottom: 20px;
+}
+.portal-section-heading h2 {
+  margin: 8px 0;
+  font-size: 23px;
+}
+.portal-section-heading p {
+  margin-bottom: 0;
+  color: #718276;
+  line-height: 1.7;
+}
+.business-entry-list {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  overflow: visible;
+}
+.business-entry {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid #dce3d9;
+  border-radius: 14px;
+  background: #fff;
+  color: #305444;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.business-entry:hover {
+  border-color: #93ae9d;
+  background: #f8fbf7;
+}
+.business-entry-top {
+  display: flex;
+  justify-content: space-between;
+  color: #527a61;
+}
+.business-entry b {
+  font-size: 20px;
+  font-weight: 600;
+}
+.business-entry > span:last-child,
+.business-note {
+  color: #718276;
+  line-height: 1.8;
+  font-size: 13px;
+}
+.business-note {
+  margin-top: 18px;
+}
+.business-tabs,
+.business-actions,
+.business-account {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.business-tabs {
+  padding-top: 22px;
+  gap: 10px;
+}
+.business-tabs a {
+  padding: 9px 15px;
+  border-radius: 7px;
+  color: #4b6858;
+  text-decoration: none;
+}
+.business-tabs a[aria-current="page"] {
+  background: #e2ebdf;
+  color: #1d5a3c;
+  font-weight: 600;
+}
+.business-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #20634e;
+  text-underline-offset: 4px;
+  width: fit-content;
+}
+.business-content-grid,
+.business-company-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.business-content-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.business-content-card {
+  margin-bottom: 20px;
+  padding: 26px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.business-content-card h2 {
+  font-size: 21px;
+}
+.business-content-card p {
+  line-height: 1.9;
+}
+.business-content-card summary {
+  color: #20634e;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+.business-company-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #dce4df;
+  border-radius: 7px;
+  color: #355349;
+  text-decoration: none;
+}
+.business-company-link > svg {
+  flex-shrink: 0;
+}
+.business-company-link:hover {
+  background: #f4f7f2;
+  border-color: #93ae9d;
+}
+.business-account {
+  color: #355349;
+}
+@media (max-width: 900px) {
+  .portal-layout,
+  .business-content-grid,
+  .business-content-grid-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .portal-layout {
+    gap: 30px;
+  }
+  .business-entry {
+    padding: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .business-company-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .business-content-card {
+    padding: 20px;
+  }
+  .business-account {
+    justify-content: flex-end;
+    gap: 8px;
+    max-width: 55%;
+  }
+}
+@media (max-width: 420px) {
+  .company-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .company-switch {
   font-size: 12px;
